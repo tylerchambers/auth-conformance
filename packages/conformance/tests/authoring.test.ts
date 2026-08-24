@@ -245,6 +245,37 @@ describe("authoring expectations", () => {
     ).toEqual([]);
   });
 
+  it("preserves the configured error reader receiver", async () => {
+    const error = {
+      prefix: "DEVICE_",
+      code(body: unknown): unknown {
+        if (body === null || typeof body !== "object" || !("code" in body)) {
+          return undefined;
+        }
+        return `${this.prefix}${String(body.code)}`;
+      },
+    };
+    const contract = authorizationContract({
+      name: "method-style-error-reader",
+      baseUrl: () => "http://127.0.0.1",
+      error,
+      lifecycle,
+    }).actor("member", sessions.anonymous());
+    contract
+      .case("missing device")
+      .as("member")
+      .get("/devices/missing")
+      .expectError(404, "DEVICE_NOT_FOUND");
+
+    expect(
+      await contract.build()[0]?.expectedResponse.evaluate({
+        status: 404,
+        headers: {},
+        body: { code: "NOT_FOUND" },
+      }),
+    ).toEqual([]);
+  });
+
   it("matches status and reports status mismatches", async () => {
     const contract = newContract();
     contract.case("status").as("member").get("/status").expectStatus(201);
