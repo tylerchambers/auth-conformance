@@ -1,10 +1,28 @@
 {
   "name": "@auth-conformance/core",
   "version": "0.1.0",
-  "private": true,
+  "description": "Declarative authorization contract testing for TypeScript HTTP APIs",
+  "license": "MIT",
   "type": "module",
-  "exports": "./src/authoring.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/authoring.d.ts",
+      "import": "./dist/authoring.js",
+      "default": "./dist/authoring.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "bun run build",
     "test": "bun test tests",
     "typecheck": "tsc --noEmit --pretty false"
   },
