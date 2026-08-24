@@ -45,7 +45,7 @@ export {
   type CatalogOperation,
   type CatalogSecurityMode,
   type FailureCategory,
-  type FixtureSandbox,
+  type FixtureLifecycle,
   type HttpClient,
   HttpScenarioExecutor,
   type HttpScenarioExecutorDependencies,

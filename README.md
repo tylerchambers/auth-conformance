@@ -1,4 +1,4 @@
-# @auth-conformance/conformance
+# @auth-conformance/core
 
 Declarative API **authorization contract testing** for TypeScript — extracted
 from the Ping the Human project so any HTTP API can use it.
@@ -8,22 +8,57 @@ expands those declarations into deterministic, stable-ordered cases, executes
 them against your real (or sandboxed) HTTP service, and reports policy
 mismatches with redacted, human-readable diffs.
 
-## Status
+## Authoring
 
-This is a fresh extraction: the execution engine is complete and tested
-(31 passing tests), but the public authoring API is about to be redesigned
-around a fluent builder. See [docs/API_REDESIGN.md](docs/API_REDESIGN.md)
-before writing new code against the current constructors.
+Define actors as per-case session factories, then declare one request and one
+expectation per case:
+
+```ts
+import {
+  authorizationContract,
+  runAuthorizationTests,
+  sessions,
+} from "@auth-conformance/core";
+
+const contract = authorizationContract({
+  name: "service-authorization",
+  baseUrl: () => process.env.AUTHORIZATION_BASE_URL!,
+  error: {
+    code: (body) => readErrorCode(body),
+  },
+  lifecycle: sandbox.lifecycle,
+})
+  .actor("anonymous", sessions.anonymous())
+  .actor("member", sessions.bearer(({ fixture }) => fixture.memberToken));
+
+contract
+  .case("members can list their devices")
+  .as("member")
+  .get("/devices")
+  .expectStatus(200);
+
+const authorizationTests = contract.build();
+await runAuthorizationTests(authorizationTests);
+```
+
+Rules can expand across the operation inventory returned by `fromOpenApi`.
+Parameterized OpenAPI paths fail closed until the rule API gains an explicit
+fixture-to-path-parameter model; the runner never requests a literal template
+path. Contracts that only assert error status may omit `error`; supplying an
+error code to `expectError` is type-available only when an envelope reader is
+configured. See [docs/API_REDESIGN.md](docs/API_REDESIGN.md) for the complete
+contract.
 
 ## Layout
 
 ```
 packages/conformance/   the library (this workspace's only package)
-  src/model.ts          Actor / Operation / AuthorizationCase IR
-  src/runner.ts         suite + runner, fixture sandbox, HTTP executor ports
-  src/reporters.ts      console & JSON reporters
-  src/redaction.ts      sensitive-value redaction
-  src/openapi-coverage-policy.ts   OpenAPI operation coverage checks
+  src/authoring.ts      four-symbol public API facade
+  src/authoring-*.ts    contract building, expectations, and execution
+  src/openapi-inventory.ts
+                        OpenAPI operation discovery for rules
+  src/model.ts          internal Actor / Operation / AuthorizationCase IR
+  src/runner.ts         internal execution and reporting engine
   tests/                bun:test suite
 ```
 
@@ -36,18 +71,10 @@ bun run typecheck
 bun test packages
 ```
 
-## Core concepts
+## Core lifecycle
 
-- **Actor** — a named principal (`anonymous`, `bearer`, `browser`, `integration`)
-  that applies credentials to outgoing requests via an injected provider.
-- **Operation** — one public HTTP endpoint built from the current fixture context.
-- **AuthorizationCase** — one actor × operation × expected-response scenario,
-  plus optional postconditions.
-- **AuthorizationInvariant** — a factory that expands into many cases
-  (e.g. "every authenticated endpoint rejects anonymous callers").
-- **FixtureSandbox** — consumer-owned port that installs, resets per case, and
-  disposes isolated fixture state (e.g. a scratch Postgres database).
-- **HttpClient** — consumer-owned transport port; bring your own fetch wrapper.
-
-Everything is immutable and deterministically ordered by case ID, so reports
-and CI diffs stay stable.
+Each case receives a fresh fixture from `lifecycle.create()`. Its actor session
+factory resolves once against that fixture, contributes headers and cookies,
+and the runner issues exactly one HTTP request. The configured expectation then
+evaluates the response before `lifecycle.dispose(fixture)` runs. Cases and
+expanded rules are returned in stable case-ID order.
