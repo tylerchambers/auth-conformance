@@ -34,13 +34,16 @@ authorizationContract(options)              // -> AuthorizationContract
 contract.case(description)                  // -> CaseBuilder
 contract.rule(description)                  // -> RuleBuilder
 
+// OpenAPI inventory — source for rule selection
+fromOpenApi(documentOrUrl)                  // -> OperationInventory
+
 // CaseBuilder terminal expectations
 .expectStatus(n)
 .expectBody(value)                          // deep equality, strict
 .expectBodyContaining(subset)               // deep subset, explicit opt-in
 .expectNoContent()
 .expectError(status, code?)                 // uses contract's error-envelope config
-.expectThat(matcher)                        // escape hatch: custom Expectation
+.expectThat(assertion)                      // escape hatch; callback seam, see §6
 
 // CaseBuilder operation declaration
 .get(path, request?)
@@ -64,6 +67,27 @@ sessions.fromHeaders(headers | fn)
 // Execution entry
 runAuthorizationTests(contract)             // sandbox comes from the contract
 ```
+
+**OpenAPI inventory.** Rules need to know which operations exist, and that
+knowledge must come from somewhere explicit. The contract takes an
+`operations` input built by `fromOpenApi(...)`:
+
+```ts
+const contract = authorizationContract({
+  name: "ping-the-human",
+  baseUrl: () => process.env.AUTHORIZATION_BASE_URL!,
+  error: { code: (body) => parseEnvelope(body).code },
+  lifecycle: sandbox.lifecycle,
+  operations: fromOpenApi("./openapi.json"),  // parsed document or URL
+})
+```
+
+`fromOpenApi` extracts `{ operationId, method, path, tags }` per operation —
+exactly what `forAllOperations()` / `forOperations({ ids | tags })` select
+against. A rule referencing an unknown ID or tag is a loud build-time error,
+not a silent zero-case expansion. Contracts without rules may omit
+`operations`; a `forAllOperations()` on such a contract fails loudly too.
+No second inventory format until one is needed.
 
 That is everything. `Actor`, `Operation`, `ExpectedResponse`,
 `AuthorizationCase`, `AuthorizationInvariant`, suites, runners, reporters,
@@ -161,7 +185,7 @@ const contract = authorizationContract({
   name: "ping-the-human",
   baseUrl: () => process.env.AUTHORIZATION_BASE_URL!,
   error: { code: (body) => parseEnvelope(body).code },  // configured ONCE
-  fixture: sandbox.lifecycle.create,   // Fixture inferred HERE
+  lifecycle: sandbox.lifecycle,          // Fixture inferred from here
 })
   .actor("anonymous", sessions.anonymous())
   .actor("user-a", sessions.bearer(({ fixture }) => fixture.tokens.userA))
@@ -187,7 +211,35 @@ envelope shape.
 | `.expectBodyContaining(s)` | deep subset; asserted keys match, extras ignored |
 | `.expectNoContent()` | status 204 and empty body |
 | `.expectError(status, code?)` | status + configured envelope code |
-| `.expectThat(matcher)` | custom escape hatch |
+| `.expectThat(assertion)` | callback seam, see below |
+
+### The `.expectThat(...)` contract
+
+The escape hatch is a plain callback, not an exported object model:
+
+```ts
+type CaseAssertion<Fixture> = (input: {
+  readonly response: {
+    readonly status: number;
+    readonly headers: Readonly<Record<string, string>>;
+    readonly body: unknown;              // already-redacted for reports
+  };
+  readonly fixture: Fixture;
+}) => void | Promise<void>;
+```
+
+```ts
+contract.case("device list pages are stable")
+  .as("user-a")
+  .get("/devices")
+  .expectThat(({ response }) => {
+    expect(response.body).toEqual(snapshottedPage);
+  });
+```
+
+Throwing fails the case with the thrown error as the failure message. That is
+the whole seam — no expectation-combinator library is exported unless
+implementation proves one necessary.
 
 **`expectEmpty()` is removed.** "Empty page envelope" was quietly becoming
 application-specific magic. An empty collection is simply
@@ -205,12 +257,17 @@ making the **sandbox own the whole lifecycle** and passing it to the contract
 once:
 
 ```ts
-type FixtureLifecycle<Fixture> = {
-  create(): Promise<Fixture>;                              // fresh per case
-  reset?(fixture: Fixture): Promise<void>;                 // optional fast path
-  dispose(fixture: Fixture): Promise<void>;                // cleanup
-};
+interface FixtureLifecycle<Fixture> {
+  create(): Promise<Fixture>;              // fresh fixture per case
+  dispose(fixture: Fixture): Promise<void>;
+}
 ```
+
+Fresh fixture per case, full stop. No `reset()` fast-path reuse — the
+previous draft described two different lifecycle models in one interface;
+the speculative one is deleted unless a real sandbox proves it necessary.
+(If per-case `create` turns out too slow for some suite, that suite can say
+so with evidence and we add one mechanism then.)
 
 - The contract receives `lifecycle: sandbox.lifecycle` (which also supplies
   `create` for fixture type inference — one object, two roles, no duplication).
@@ -224,8 +281,8 @@ Answers, plainly:
 
 - **Who creates the fixture?** The lifecycle's `create`, invoked by the runner,
   once per case.
-- **Who resets/disposes?** The runner, via the same lifecycle object — `reset`
-  when provided, otherwise fresh `create`.
+- **Who resets/disposes?** The runner, via the same lifecycle object — a fresh
+  `create` per case, then `dispose`.
 - **What does `runAuthorizationTests` need beyond the contract?** Nothing.
 
 Apps still invoke it inside their ordinary test files:
