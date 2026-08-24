@@ -31,8 +31,5 @@ jobs:
       - name: Run package unit tests
         run: bun test packages
 
-      - name: Build distributable package
-        run: bun run build
-
       - name: Pack and test isolated consumer
         run: bun run test:package
