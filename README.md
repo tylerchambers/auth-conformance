@@ -42,7 +42,12 @@ await runAuthorizationTests(authorizationTests);
 ```
 
 Rules can expand across the operation inventory returned by `fromOpenApi`.
-See [docs/API_REDESIGN.md](docs/API_REDESIGN.md) for the complete contract.
+Parameterized OpenAPI paths fail closed until the rule API gains an explicit
+fixture-to-path-parameter model; the runner never requests a literal template
+path. Contracts that only assert error status may omit `error`; supplying an
+error code to `expectError` is type-available only when an envelope reader is
+configured. See [docs/API_REDESIGN.md](docs/API_REDESIGN.md) for the complete
+contract.
 
 ## Layout
 

@@ -62,83 +62,142 @@ type OperationSelection =
   | { readonly ids: readonly string[]; readonly tags?: never }
   | { readonly tags: readonly string[]; readonly ids?: never };
 
-type AuthorizationContractOptions<Fixture> = {
+type AuthorizationContractCommonOptions<Fixture> = {
   readonly name: string;
   readonly baseUrl: () => string | URL;
-  readonly error: ErrorEnvelope;
   readonly lifecycle: FixtureLifecycle<Fixture>;
   readonly operations?: OperationInventory;
 };
 
-type CaseActorBuilder<Fixture, ActorName extends string> = {
-  id(id: string): CaseActorBuilder<Fixture, ActorName>;
-  as(actorName: ActorName): CaseOperationBuilder<Fixture, ActorName>;
+type AuthorizationContractOptions<Fixture> =
+  AuthorizationContractCommonOptions<Fixture> & {
+    readonly error?: ErrorEnvelope;
+  };
+
+type CaseActorBuilder<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+> = {
+  id(id: string): CaseActorBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  as(
+    actorName: ActorName,
+  ): CaseOperationBuilder<Fixture, ActorName, HasErrorEnvelope>;
 };
 
-type CaseOperationBuilder<Fixture, ActorName extends string> = {
-  id(id: string): CaseOperationBuilder<Fixture, ActorName>;
+type CaseOperationBuilder<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+> = {
+  id(id: string): CaseOperationBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  request(
+    method: HttpMethod,
+    buildRequest: (context: SessionContext<Fixture>) => OperationRequest,
+  ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
   get<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
-  ): CaseExpectationBuilder<Fixture, ActorName>;
+  ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
   post<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
-  ): CaseExpectationBuilder<Fixture, ActorName>;
+  ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
   put<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
-  ): CaseExpectationBuilder<Fixture, ActorName>;
+  ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
   patch<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
-  ): CaseExpectationBuilder<Fixture, ActorName>;
+  ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
   delete<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
-  ): CaseExpectationBuilder<Fixture, ActorName>;
+  ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
   head<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
-  ): CaseExpectationBuilder<Fixture, ActorName>;
+  ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
 };
 
-type ExpectationTerminals<Fixture, Result> = {
+type ErrorExpectationArguments<HasErrorEnvelope extends boolean> =
+  HasErrorEnvelope extends true
+    ? [status: number, code?: string]
+    : [status: number];
+
+type ErrorExpectationTerminal<Result, HasErrorEnvelope extends boolean> = {
+  expectError(
+    ...expectation: ErrorExpectationArguments<HasErrorEnvelope>
+  ): Result;
+};
+
+type ExpectationTerminals<Fixture, Result, HasErrorEnvelope extends boolean> = {
   expectStatus(status: number): Result;
   expectBody(value: unknown): Result;
   expectBodyContaining(subset: unknown): Result;
   expectNoContent(): Result;
-  expectError(status: number, code?: string): Result;
   expectThat(assertion: CaseAssertion<Fixture>): Result;
-};
+} & ErrorExpectationTerminal<Result, HasErrorEnvelope>;
 
-type CaseExpectationBuilder<Fixture, ActorName extends string> = {
-  id(id: string): CaseExpectationBuilder<Fixture, ActorName>;
-} & ExpectationTerminals<Fixture, AuthorizationContract<Fixture, ActorName>>;
+type CaseExpectationBuilder<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+> = {
+  id(id: string): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
+} & ExpectationTerminals<
+  Fixture,
+  AuthorizationContract<Fixture, ActorName, HasErrorEnvelope>,
+  HasErrorEnvelope
+>;
 
-type RuleSelectionBuilder<Fixture, ActorName extends string> = {
-  forAllOperations(): RuleActorBuilder<Fixture, ActorName>;
+type RuleSelectionBuilder<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+> = {
+  forAllOperations(): RuleActorBuilder<Fixture, ActorName, HasErrorEnvelope>;
   forOperations(
     selection: OperationSelection,
-  ): RuleActorBuilder<Fixture, ActorName>;
+  ): RuleActorBuilder<Fixture, ActorName, HasErrorEnvelope>;
 };
 
-type RuleActorBuilder<Fixture, ActorName extends string> = {
-  as(actorName: ActorName): RuleExpectationBuilder<Fixture, ActorName>;
+type RuleActorBuilder<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+> = {
+  as(
+    actorName: ActorName,
+  ): RuleExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
 };
 
 type RuleExpectationBuilder<
   Fixture,
   ActorName extends string,
-> = ExpectationTerminals<Fixture, AuthorizationContract<Fixture, ActorName>>;
+  HasErrorEnvelope extends boolean,
+> = ExpectationTerminals<
+  Fixture,
+  AuthorizationContract<Fixture, ActorName, HasErrorEnvelope>,
+  HasErrorEnvelope
+>;
 
-type AuthorizationContract<Fixture, ActorName extends string> = {
+type AuthorizationContract<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+> = {
   actor<Name extends string>(
     name: Name,
     factory: SessionFactory<Fixture>,
-  ): AuthorizationContract<Fixture, ActorName | Name>;
-  case(description: string): CaseActorBuilder<Fixture, ActorName>;
-  rule(description: string): RuleSelectionBuilder<Fixture, ActorName>;
+  ): AuthorizationContract<Fixture, ActorName | Name, HasErrorEnvelope>;
+  case(
+    description: string,
+  ): CaseActorBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  rule(
+    description: string,
+  ): RuleSelectionBuilder<Fixture, ActorName, HasErrorEnvelope>;
   build(): BuiltAuthorizationContract<Fixture>;
 };
 
@@ -189,9 +248,19 @@ type RuleDraft<Fixture> = DeclarationDraft & {
 };
 
 export function authorizationContract<Fixture>(
+  options: AuthorizationContractCommonOptions<Fixture> & {
+    readonly error: ErrorEnvelope;
+  },
+): AuthorizationContract<Fixture, never, true>;
+export function authorizationContract<Fixture>(
+  options: AuthorizationContractCommonOptions<Fixture> & {
+    readonly error?: never;
+  },
+): AuthorizationContract<Fixture, never, false>;
+export function authorizationContract<Fixture>(
   options: AuthorizationContractOptions<Fixture>,
-): AuthorizationContract<Fixture, never> {
-  return makeContract({
+): AuthorizationContract<Fixture, never, boolean> {
+  return makeContract<Fixture, never, boolean>({
     options,
     actors: new Map(),
     declarations: [],
@@ -199,16 +268,20 @@ export function authorizationContract<Fixture>(
   });
 }
 
-function makeContract<Fixture, ActorName extends string>(
+function makeContract<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+>(
   state: ContractState<Fixture>,
-): AuthorizationContract<Fixture, ActorName> {
+): AuthorizationContract<Fixture, ActorName, HasErrorEnvelope> {
   return {
     actor<Name extends string>(name: Name, factory: SessionFactory<Fixture>) {
       if (state.actors.has(name)) {
         throw new Error(`Actor "${name}" is already registered`);
       }
       state.actors.set(name, buildActor(name, factory));
-      return makeContract<Fixture, ActorName | Name>(state);
+      return makeContract<Fixture, ActorName | Name, HasErrorEnvelope>(state);
     },
     case(description) {
       const draft: CaseDraft<Fixture> = {
@@ -217,7 +290,10 @@ function makeContract<Fixture, ActorName extends string>(
         complete: false,
       };
       state.declarations.push(draft);
-      return makeCaseActorBuilder<Fixture, ActorName>(state, draft);
+      return makeCaseActorBuilder<Fixture, ActorName, HasErrorEnvelope>(
+        state,
+        draft,
+      );
     },
     rule(description) {
       const draft: RuleDraft<Fixture> = {
@@ -226,7 +302,10 @@ function makeContract<Fixture, ActorName extends string>(
         complete: false,
       };
       state.declarations.push(draft);
-      return makeRuleSelectionBuilder<Fixture, ActorName>(state, draft);
+      return makeRuleSelectionBuilder<Fixture, ActorName, HasErrorEnvelope>(
+        state,
+        draft,
+      );
     },
     build() {
       const incomplete = state.declarations.find(
@@ -314,10 +393,14 @@ function mergedHeadersRequest(
   return { ...request, headers };
 }
 
-function makeCaseActorBuilder<Fixture, ActorName extends string>(
+function makeCaseActorBuilder<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+>(
   state: ContractState<Fixture>,
   draft: CaseDraft<Fixture>,
-): CaseActorBuilder<Fixture, ActorName> {
+): CaseActorBuilder<Fixture, ActorName, HasErrorEnvelope> {
   return {
     id(id) {
       setExplicitId(draft, id);
@@ -326,20 +409,27 @@ function makeCaseActorBuilder<Fixture, ActorName extends string>(
     as(actorName) {
       assertIncomplete(draft);
       draft.actor = findActor(state, actorName);
-      return makeCaseOperationBuilder<Fixture, ActorName>(state, draft);
+      return makeCaseOperationBuilder<Fixture, ActorName, HasErrorEnvelope>(
+        state,
+        draft,
+      );
     },
   };
 }
 
-function makeCaseOperationBuilder<Fixture, ActorName extends string>(
+function makeCaseOperationBuilder<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+>(
   state: ContractState<Fixture>,
   draft: CaseDraft<Fixture>,
-): CaseOperationBuilder<Fixture, ActorName> {
+): CaseOperationBuilder<Fixture, ActorName, HasErrorEnvelope> {
   const declare = <Path extends string>(
     method: AuthoringHttpMethod,
     path: Path,
     request: RequestForPath<Fixture, Path> | undefined,
-  ): CaseExpectationBuilder<Fixture, ActorName> => {
+  ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope> => {
     assertIncomplete(draft);
     draft.operation = new Operation({
       id: operationDiscriminator(method, path),
@@ -347,13 +437,28 @@ function makeCaseOperationBuilder<Fixture, ActorName extends string>(
       catalogPath: path,
       buildRequest: (fixture) => buildOperationRequest(path, request, fixture),
     });
-    return makeCaseExpectationBuilder<Fixture, ActorName>(state, draft);
+    return makeCaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>(
+      state,
+      draft,
+    );
   };
 
   return {
     id(id) {
       setExplicitId(draft, id);
       return this;
+    },
+    request(method, buildRequest) {
+      assertIncomplete(draft);
+      draft.operation = new Operation({
+        id: `custom-${method.toLowerCase()}`,
+        method,
+        buildRequest: (fixture) => buildRequest({ fixture }),
+      });
+      return makeCaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>(
+        state,
+        draft,
+      );
     },
     get(path, ...request) {
       return declare("GET", path, request[0]);
@@ -427,48 +532,63 @@ function resolvePath<Fixture>(
   });
 }
 
-function makeCaseExpectationBuilder<Fixture, ActorName extends string>(
+function makeCaseExpectationBuilder<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+>(
   state: ContractState<Fixture>,
   draft: CaseDraft<Fixture>,
-): CaseExpectationBuilder<Fixture, ActorName> {
+): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope> {
   return {
     id(id) {
       setExplicitId(draft, id);
       return this;
     },
-    ...expectationTerminals(state, (expectedResponse) => {
-      assertIncomplete(draft);
-      if (draft.actor === undefined || draft.operation === undefined) {
-        throw new Error("A case requires one actor and one operation");
-      }
-      draft.complete = true;
-      const authorizationCase = new AuthorizationCase({
-        id:
-          draft.explicitId ??
-          generatedCaseId(
-            draft.description,
-            draft.operation.id,
-            draft.actor.name,
-          ),
-        actor: draft.actor,
-        operation: draft.operation,
-        expectedResponse,
-      });
-      state.invariants.push({
-        id: authorizationCase.id,
-        expand: () => [authorizationCase],
-      });
-    }),
+    ...expectationTerminals<Fixture, ActorName, HasErrorEnvelope>(
+      state,
+      (expectedResponse) => {
+        assertIncomplete(draft);
+        if (draft.actor === undefined || draft.operation === undefined) {
+          throw new Error("A case requires one actor and one operation");
+        }
+        draft.complete = true;
+        const authorizationCase = new AuthorizationCase({
+          id:
+            draft.explicitId ??
+            generatedCaseId(
+              draft.description,
+              draft.operation.id,
+              draft.actor.name,
+            ),
+          actor: draft.actor,
+          operation: draft.operation,
+          expectedResponse,
+        });
+        state.invariants.push({
+          id: authorizationCase.id,
+          expand: () => [authorizationCase],
+        });
+      },
+    ),
   };
 }
 
-function expectationTerminals<Fixture, ActorName extends string>(
+function expectationTerminals<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+>(
   state: ContractState<Fixture>,
   complete: (expectedResponse: ExpectedResponse) => void,
-): ExpectationTerminals<Fixture, AuthorizationContract<Fixture, ActorName>> {
+): ExpectationTerminals<
+  Fixture,
+  AuthorizationContract<Fixture, ActorName, HasErrorEnvelope>,
+  HasErrorEnvelope
+> {
   const finish = (expectedResponse: ExpectedResponse) => {
     complete(expectedResponse);
-    return makeContract<Fixture, ActorName>(state);
+    return makeContract<Fixture, ActorName, HasErrorEnvelope>(state);
   };
 
   return {
@@ -484,8 +604,10 @@ function expectationTerminals<Fixture, ActorName extends string>(
     expectNoContent() {
       return finish(noContentExpectation());
     },
-    expectError(status, code) {
-      return finish(errorExpectation(state.options.error, status, code));
+    expectError(...expectation: ErrorExpectationArguments<HasErrorEnvelope>) {
+      return finish(
+        errorExpectation(state.options.error, expectation[0], expectation[1]),
+      );
     },
     expectThat(assertion) {
       return finish(callbackExpectation(assertion));
@@ -512,58 +634,79 @@ function assertIncomplete(draft: { readonly complete: boolean }): void {
   }
 }
 
-function makeRuleSelectionBuilder<Fixture, ActorName extends string>(
+function makeRuleSelectionBuilder<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+>(
   state: ContractState<Fixture>,
   draft: RuleDraft<Fixture>,
-): RuleSelectionBuilder<Fixture, ActorName> {
+): RuleSelectionBuilder<Fixture, ActorName, HasErrorEnvelope> {
   return {
     forAllOperations() {
-      draft.operations = requireInventory(state).operations;
-      return makeRuleActorBuilder<Fixture, ActorName>(state, draft);
+      draft.operations = assertRulesSupportOperations(
+        requireInventory(state).operations,
+      );
+      return makeRuleActorBuilder<Fixture, ActorName, HasErrorEnvelope>(
+        state,
+        draft,
+      );
     },
     forOperations(selection) {
       const inventory = requireInventory(state);
-      draft.operations = selectOperations(inventory, selection);
-      return makeRuleActorBuilder<Fixture, ActorName>(state, draft);
+      draft.operations = assertRulesSupportOperations(
+        selectOperations(inventory, selection),
+      );
+      return makeRuleActorBuilder<Fixture, ActorName, HasErrorEnvelope>(
+        state,
+        draft,
+      );
     },
   };
 }
 
-function makeRuleActorBuilder<Fixture, ActorName extends string>(
+function makeRuleActorBuilder<
+  Fixture,
+  ActorName extends string,
+  HasErrorEnvelope extends boolean,
+>(
   state: ContractState<Fixture>,
   draft: RuleDraft<Fixture>,
-): RuleActorBuilder<Fixture, ActorName> {
+): RuleActorBuilder<Fixture, ActorName, HasErrorEnvelope> {
   return {
     as(actorName) {
       assertIncomplete(draft);
       draft.actor = findActor(state, actorName);
-      return expectationTerminals(state, (expectedResponse) => {
-        assertIncomplete(draft);
-        if (draft.actor === undefined || draft.operations === undefined) {
-          throw new Error("A rule requires an operation selection and actor");
-        }
-        draft.complete = true;
-        const actor = draft.actor;
-        const operations = draft.operations;
-        state.invariants.push({
-          id: slug(draft.description),
-          expand: () =>
-            operations.map((inventoryOperation) => {
-              const operation =
-                inventoryOperationModel<Fixture>(inventoryOperation);
-              return new AuthorizationCase({
-                id: generatedCaseId(
-                  draft.description,
-                  inventoryOperation.operationId,
-                  actor.name,
-                ),
-                actor,
-                operation,
-                expectedResponse,
-              });
-            }),
-        });
-      });
+      return expectationTerminals<Fixture, ActorName, HasErrorEnvelope>(
+        state,
+        (expectedResponse) => {
+          assertIncomplete(draft);
+          if (draft.actor === undefined || draft.operations === undefined) {
+            throw new Error("A rule requires an operation selection and actor");
+          }
+          draft.complete = true;
+          const actor = draft.actor;
+          const operations = draft.operations;
+          state.invariants.push({
+            id: slug(draft.description),
+            expand: () =>
+              operations.map((inventoryOperation) => {
+                const operation =
+                  inventoryOperationModel<Fixture>(inventoryOperation);
+                return new AuthorizationCase({
+                  id: generatedCaseId(
+                    draft.description,
+                    inventoryOperation.operationId,
+                    actor.name,
+                  ),
+                  actor,
+                  operation,
+                  expectedResponse,
+                });
+              }),
+          });
+        },
+      );
     },
   };
 }
@@ -609,6 +752,19 @@ function selectOperations(
   return inventory.operations.filter((operation) =>
     operation.tags.some((tag) => selectedTags.has(tag)),
   );
+}
+
+function assertRulesSupportOperations(
+  operations: readonly InventoryOperation[],
+): readonly InventoryOperation[] {
+  for (const operation of operations) {
+    if (/\{[^}]+\}/.test(operation.path)) {
+      throw new Error(
+        `OpenAPI operation "${operation.operationId}" has parameterized path "${operation.path}"; authorization rules do not support path parameters yet`,
+      );
+    }
+  }
+  return operations;
 }
 
 function uniqueOperations(

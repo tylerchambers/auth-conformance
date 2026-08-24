@@ -65,10 +65,16 @@ export function noContentExpectation(): ExpectedResponse {
 }
 
 export function errorExpectation(
-  envelope: ErrorEnvelope,
+  envelope: ErrorEnvelope | undefined,
   status: number,
   code: string | undefined,
 ): ExpectedResponse {
+  const readCode = envelope?.code;
+  if (code !== undefined && readCode === undefined) {
+    throw new Error(
+      "An error code expectation requires an error-envelope configuration",
+    );
+  }
   return new ExpectedResponse({
     description:
       code === undefined ? `HTTP ${status}` : `HTTP ${status} error ${code}`,
@@ -82,7 +88,12 @@ export function errorExpectation(
         );
       }
       if (code !== undefined) {
-        const actualCode = envelope.code(response.body);
+        if (readCode === undefined) {
+          throw new Error(
+            "An error code expectation requires an error-envelope configuration",
+          );
+        }
+        const actualCode = readCode(response.body);
         if (!isDeepStrictEqual(actualCode, code)) {
           mismatches.push(
             policyMismatch(

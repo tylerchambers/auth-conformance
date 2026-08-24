@@ -131,6 +131,26 @@ describe("authorizationContract cases", () => {
     ).toEqual(["DELETE", "GET", "HEAD", "PATCH", "POST", "PUT"]);
   });
 
+  it("supports an explicit-method custom request escape hatch", () => {
+    const contract = newContract();
+    contract
+      .case("custom options request")
+      .as("member")
+      .request("OPTIONS", ({ fixture }) => ({
+        path: `/devices/${fixture.deviceId}`,
+        headers: { "X-Probe": String(fixture.id) },
+      }))
+      .expectStatus(204);
+
+    expect(contract.build()[0]?.operation.buildRequest(awaitFixture())).toEqual(
+      {
+        method: "OPTIONS",
+        path: "/devices/device",
+        headers: { "X-Probe": "1" },
+      },
+    );
+  });
+
   it("supports explicit IDs and rejects generated-ID collisions", () => {
     const explicit = newContract();
     explicit
@@ -200,6 +220,31 @@ describe("authorizationContract cases", () => {
 });
 
 describe("authoring expectations", () => {
+  it("supports status-only errors without an error-envelope configuration", async () => {
+    const contract = authorizationContract({
+      name: "status-only-errors",
+      baseUrl: () => "http://127.0.0.1",
+      lifecycle,
+    }).actor("member", sessions.anonymous());
+    const terminal = contract.case("unauthorized").as("member").get("/private");
+    terminal.expectError(401);
+
+    const compileTimeAssertions = () => {
+      const another = contract.case("coded error").as("member").get("/private");
+      // @ts-expect-error Error codes require a configured error-envelope reader.
+      another.expectError(401, "UNAUTHENTICATED");
+    };
+
+    expect(compileTimeAssertions).toBeInstanceOf(Function);
+    expect(
+      await contract.build()[0]?.expectedResponse.evaluate({
+        status: 401,
+        headers: {},
+        body: { arbitrary: "shape" },
+      }),
+    ).toEqual([]);
+  });
+
   it("matches status and reports status mismatches", async () => {
     const contract = newContract();
     contract.case("status").as("member").get("/status").expectStatus(201);
@@ -381,6 +426,27 @@ describe("authorization rules", () => {
     expect(() =>
       contract.rule("unknown tag").forOperations({ tags: ["missing"] }),
     ).toThrow('Unknown operation tag "missing"');
+  });
+
+  it("rejects parameterized OpenAPI operations instead of requesting template paths", () => {
+    const parameterizedInventory = fromOpenApi({
+      openapi: "3.1.0",
+      paths: {
+        "/devices/{deviceId}": {
+          get: { operationId: "getDevice", tags: ["device"] },
+        },
+      },
+    });
+    const contract = authorizationContract({
+      name: "parameterized-rules",
+      baseUrl: () => "http://127.0.0.1",
+      lifecycle,
+      operations: parameterizedInventory,
+    }).actor("anonymous", sessions.anonymous());
+
+    expect(() => contract.rule("all").forAllOperations()).toThrow(
+      'OpenAPI operation "getDevice" has parameterized path "/devices/{deviceId}"; authorization rules do not support path parameters yet',
+    );
   });
 });
 

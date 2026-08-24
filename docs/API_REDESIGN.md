@@ -52,6 +52,7 @@ fromOpenApi(documentOrUrl)                  // -> OperationInventory
 .patch(path, request?)
 .delete(path, request?)
 .head(path, request?)
+.request(method, ({ fixture }) => request)  // uncommon custom request escape hatch
 
 // Session helpers — all convenience constructors over SessionFactory
 sessions.anonymous()                        // contributes no headers/cookies
@@ -161,8 +162,15 @@ from inside a case — `.as("user-a")` is all they write.
 
 Cases declare HTTP operations directly; there is no endpoint registry. Path
 parameters (`:name`) must be supplied via `params` and are type-checked;
-missing/unused params fail compilation. A raw `.request(fn)` escape exists
-but stays rare by design.
+missing/unused params fail compilation. A raw
+`.request(method, ({ fixture }) => request)` escape exists for uncommon cases;
+the method is explicit so operation identity and reporting remain deterministic.
+
+Rules currently reject selected OpenAPI operations whose paths contain template
+parameters such as `/devices/{deviceId}`. Calling the literal template would
+test the wrong route, and the rule API deliberately has no implicit fixture-to-
+parameter convention. Add explicit rule parameterization before lifting this
+fail-closed restriction.
 
 Rules select families explicitly — OpenAPI operation IDs or tags, nothing
 cleverer:
