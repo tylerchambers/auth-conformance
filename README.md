@@ -69,7 +69,14 @@ bun install --frozen-lockfile
 bun run format:check
 bun run typecheck
 bun test packages
+bun run build
+bun run test:package
 ```
+
+`test:package` packs `@auth-conformance/core`, asserts the tarball allowlist,
+installs it in a temporary project outside the workspace, compiles positive and
+negative consumer type cases against the emitted declarations, and executes the
+compiled consumer with Node.js.
 
 ## Core lifecycle
 

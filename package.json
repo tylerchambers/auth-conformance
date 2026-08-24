@@ -8,9 +8,11 @@
     "examples/*"
   ],
   "scripts": {
+    "build": "bun run --cwd packages/conformance build",
+    "format:check": "biome check .",
     "test": "bun test packages",
-    "typecheck": "tsc --noEmit --pretty false",
-    "format:check": "biome check ."
+    "test:package": "bun scripts/test-package.ts",
+    "typecheck": "tsc --noEmit --pretty false"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.6",
