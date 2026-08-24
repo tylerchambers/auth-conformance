@@ -244,7 +244,7 @@ implementation proves one necessary.
 **`expectEmpty()` is removed.** "Empty page envelope" was quietly becoming
 application-specific magic. An empty collection is simply
 `.expectBody([])` — strict, obvious, zero hidden shapes. If page-envelope
-matching is ever needed, it belongs in consumer-side `.expectThat(matcher)`
+matching is ever needed, it belongs in consumer-side `.expectThat(...)` assertions
 or a future explicitly-named matcher, not in a vague core verb.
 
 Reports render each matcher's intent ("expected body equal to {…}") so
@@ -273,7 +273,7 @@ so with evidence and we add one mechanism then.)
   `create` for fixture type inference — one object, two roles, no duplication).
 - `runAuthorizationTests(contract)` takes **nothing else**. It drives the
   lifecycle through the contract: install before each case, run the case's
-  exactly-one request, assert, then dispose/reset. There is no separate
+  exactly-one request, assert, then dispose. There is no separate
   runner-level sandbox parameter at all, so the double-passing failure mode
   cannot occur.
 
