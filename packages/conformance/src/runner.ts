@@ -404,7 +404,7 @@ export class AuthorizationRunner<TFixture> {
 
     let mismatches: readonly ResponseMismatch[];
     try {
-      mismatches = authorizationCase.expectedResponse.evaluate(
+      mismatches = await authorizationCase.expectedResponse.evaluate(
         response,
         fixture,
       );

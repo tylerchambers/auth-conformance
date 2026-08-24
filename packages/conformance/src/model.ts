@@ -140,7 +140,7 @@ export type ExpectedResponseOptions = {
   readonly evaluate: (
     response: HttpResponse,
     fixture?: unknown,
-  ) => readonly ResponseMismatch[];
+  ) => readonly ResponseMismatch[] | Promise<readonly ResponseMismatch[]>;
 };
 
 /** Describes safe observable response expectations without retaining credentials. */
@@ -149,7 +149,7 @@ export class ExpectedResponse {
   private readonly evaluateResponse: (
     response: HttpResponse,
     fixture?: unknown,
-  ) => readonly ResponseMismatch[];
+  ) => readonly ResponseMismatch[] | Promise<readonly ResponseMismatch[]>;
 
   constructor(options: ExpectedResponseOptions) {
     this.description = options.description;
@@ -174,7 +174,7 @@ export class ExpectedResponse {
   evaluate(
     response: HttpResponse,
     fixture?: unknown,
-  ): readonly ResponseMismatch[] {
+  ): readonly ResponseMismatch[] | Promise<readonly ResponseMismatch[]> {
     return this.evaluateResponse(response, fixture);
   }
 }
