@@ -125,7 +125,7 @@ async function main(): Promise<void> {
             "@auth-conformance/core": `file:${tarballPath}`,
           },
           devDependencies: {
-            "@types/node": "26.3.0",
+            "@types/node": "26.2.0",
             typescript: "7.0.2",
           },
         },
