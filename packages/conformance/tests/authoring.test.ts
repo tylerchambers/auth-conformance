@@ -5,7 +5,7 @@ import {
   runAuthorizationTests,
   sessions,
 } from "../src/authoring.ts";
-import { runAuthorizationCases } from "../src/authoring-execution.ts";
+import { runAuthorizationCases } from "../src/authoring-runtime.ts";
 import type { HttpRequest, HttpResponse } from "../src/model.ts";
 import type { HttpClient } from "../src/runner.ts";
 

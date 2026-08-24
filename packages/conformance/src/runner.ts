@@ -93,10 +93,9 @@ export type OperationClassification =
       readonly rationale: string;
     };
 
-export interface FixtureSandbox<TFixture> {
-  install(signal: AbortSignal): Promise<TFixture>;
-  reset(fixture: TFixture, caseId: string, signal: AbortSignal): Promise<void>;
-  dispose(fixture: TFixture | undefined, signal: AbortSignal): Promise<void>;
+export interface FixtureLifecycle<TFixture> {
+  create(): Promise<TFixture>;
+  dispose(fixture: TFixture): Promise<void>;
 }
 
 export interface SuiteReporter {
@@ -210,7 +209,7 @@ export class HttpScenarioExecutor {
 }
 
 export type AuthorizationRunnerDependencies<TFixture> = {
-  readonly fixtures: FixtureSandbox<TFixture>;
+  readonly lifecycle: FixtureLifecycle<TFixture>;
   readonly httpClient: HttpClient;
   readonly caseExpander?: AuthorizationCaseExpander;
   readonly coveragePolicy?: OpenApiCoveragePolicy;
@@ -220,7 +219,7 @@ export type AuthorizationRunnerDependencies<TFixture> = {
 
 /** Executes cases serially, aggregates policy failures, and owns fixture disposal. */
 export class AuthorizationRunner<TFixture> {
-  private readonly fixtures: FixtureSandbox<TFixture>;
+  private readonly lifecycle: FixtureLifecycle<TFixture>;
   private readonly caseExpander: AuthorizationCaseExpander;
   private readonly coveragePolicy: OpenApiCoveragePolicy;
   private readonly operationCatalog: OperationCatalog | undefined;
@@ -228,7 +227,7 @@ export class AuthorizationRunner<TFixture> {
   private readonly executor: HttpScenarioExecutor;
 
   constructor(dependencies: AuthorizationRunnerDependencies<TFixture>) {
-    this.fixtures = dependencies.fixtures;
+    this.lifecycle = dependencies.lifecycle;
     this.caseExpander =
       dependencies.caseExpander ?? new AuthorizationCaseExpander();
     this.coveragePolicy =
@@ -245,57 +244,45 @@ export class AuthorizationRunner<TFixture> {
     suite: AuthorizationSuite<TFixture>,
     signal: AbortSignal = new AbortController().signal,
   ): Promise<SuiteReport> {
-    let installation:
-      | { readonly installed: false }
-      | { readonly installed: true; readonly fixture: TFixture } = {
-      installed: false,
-    };
     let cases: readonly AuthorizationCase<TFixture>[] = [];
     const caseReports: CaseReport[] = [];
     const suiteFailures: AuthorizationFailure[] = [];
     let aborted = false;
 
     try {
+      cases = this.caseExpander.expand(suite.invariants);
+    } catch (error) {
+      aborted = true;
+      suiteFailures.push(this.failure("framework-defect", error));
+    }
+
+    if (!aborted && this.operationCatalog !== undefined) {
       try {
-        cases = this.caseExpander.expand(suite.invariants);
+        this.coveragePolicy.validate(
+          await this.operationCatalog.load(signal),
+          suite.operationClassifications,
+          cases,
+        );
       } catch (error) {
         aborted = true;
         suiteFailures.push(this.failure("framework-defect", error));
       }
+    }
 
-      if (!aborted && this.operationCatalog !== undefined) {
+    if (!aborted) {
+      for (const authorizationCase of cases) {
+        let fixture:
+          | { readonly created: false }
+          | { readonly created: true; readonly value: TFixture } = {
+          created: false,
+        };
+
         try {
-          this.coveragePolicy.validate(
-            await this.operationCatalog.load(signal),
-            suite.operationClassifications,
-            cases,
-          );
-        } catch (error) {
-          aborted = true;
-          suiteFailures.push(this.failure("framework-defect", error));
-        }
-      }
-
-      if (!aborted) {
-        try {
-          installation = {
-            installed: true,
-            fixture: await this.fixtures.install(signal),
-          };
-        } catch (error) {
-          aborted = true;
-          suiteFailures.push(this.failure("fixture-failure", error));
-        }
-      }
-
-      if (!aborted && installation.installed) {
-        for (const authorizationCase of cases) {
           try {
-            await this.fixtures.reset(
-              installation.fixture,
-              authorizationCase.id,
-              signal,
-            );
+            fixture = {
+              created: true,
+              value: await this.lifecycle.create(),
+            };
           } catch (error) {
             aborted = true;
             suiteFailures.push(this.failure("fixture-failure", error));
@@ -304,25 +291,27 @@ export class AuthorizationRunner<TFixture> {
 
           const result = await this.executeCase(
             authorizationCase,
-            installation.fixture,
+            fixture.value,
             signal,
           );
           caseReports.push(result.report);
           if (result.fatal) {
             aborted = true;
-            break;
+          }
+        } finally {
+          if (fixture.created) {
+            try {
+              await this.lifecycle.dispose(fixture.value);
+            } catch (error) {
+              aborted = true;
+              suiteFailures.push(this.failure("fixture-failure", error));
+            }
           }
         }
-      }
-    } finally {
-      try {
-        await this.fixtures.dispose(
-          installation.installed ? installation.fixture : undefined,
-          new AbortController().signal,
-        );
-      } catch (error) {
-        aborted = true;
-        suiteFailures.push(this.failure("fixture-failure", error));
+
+        if (aborted) {
+          break;
+        }
       }
     }
 

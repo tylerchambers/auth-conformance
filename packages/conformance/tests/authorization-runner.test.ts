@@ -6,7 +6,7 @@ import {
   AuthorizationSuite,
   type CredentialProvider,
   ExpectedResponse,
-  type FixtureSandbox,
+  type FixtureLifecycle,
   type HttpClient,
   type HttpRequest,
   type HttpResponse,
@@ -24,22 +24,15 @@ const unchangedCredentials: CredentialProvider<Fixture> = {
   authorize: ({ request }) => request,
 };
 
-class RecordingFixtureSandbox implements FixtureSandbox<Fixture> {
+class RecordingFixtureLifecycle implements FixtureLifecycle<Fixture> {
   readonly events: string[] = [];
 
-  async install(): Promise<Fixture> {
-    this.events.push("install");
+  async create(): Promise<Fixture> {
+    this.events.push("create");
     return { value: "fixture" };
   }
 
-  async reset(_fixture: Fixture, caseId: string): Promise<void> {
-    this.events.push(`reset:${caseId}`);
-  }
-
-  async dispose(
-    _fixture: Fixture | undefined,
-    _signal: AbortSignal,
-  ): Promise<void> {
+  async dispose(_fixture: Fixture): Promise<void> {
     this.events.push("dispose");
   }
 }
@@ -87,8 +80,8 @@ function authorizationCase(
 }
 
 describe(AuthorizationRunner.name, () => {
-  it("aborts on OpenAPI coverage failure before fixture installation", async () => {
-    const fixtures = new RecordingFixtureSandbox();
+  it("aborts on OpenAPI coverage failure before fixture creation", async () => {
+    const lifecycle = new RecordingFixtureLifecycle();
     const operationCatalog: OperationCatalog = {
       load: async () => [
         { id: "operation-a", method: "GET", path: "/a", security: "browser" },
@@ -101,12 +94,12 @@ describe(AuthorizationRunner.name, () => {
     });
 
     const report = await new AuthorizationRunner({
-      fixtures,
+      lifecycle,
       httpClient: new RecordingHttpClient(),
       operationCatalog,
     }).run(suite);
 
-    expect(fixtures.events).toEqual(["dispose"]);
+    expect(lifecycle.events).toEqual([]);
     expect(report.outcome).toBe("aborted");
     expect(report.failures).toEqual([
       {
@@ -232,7 +225,7 @@ describe(AuthorizationRunner.name, () => {
   });
 
   it("executes sorted cases serially, aggregates safe failures, reports, and disposes", async () => {
-    const fixtures = new RecordingFixtureSandbox();
+    const lifecycle = new RecordingFixtureLifecycle();
     const httpClient = new RecordingHttpClient();
     const reporter = new RecordingReporter();
     const suite = new AuthorizationSuite({
@@ -250,15 +243,15 @@ describe(AuthorizationRunner.name, () => {
     });
 
     const report = await new AuthorizationRunner({
-      fixtures,
+      lifecycle,
       httpClient,
     }).run(suite);
 
     expect(httpClient.paths).toEqual(["/policy", "/transport"]);
-    expect(fixtures.events).toEqual([
-      "install",
-      "reset:a-policy",
-      "reset:z-transport",
+    expect(lifecycle.events).toEqual([
+      "create",
+      "dispose",
+      "create",
       "dispose",
     ]);
     expect(report).toEqual({
@@ -304,10 +297,10 @@ describe(AuthorizationRunner.name, () => {
     expect(reporter.reports).toEqual([report]);
   });
 
-  it("aborts after fixture integrity fails and still disposes", async () => {
-    const fixtures = new RecordingFixtureSandbox();
-    fixtures.reset = async (_fixture, caseId) => {
-      fixtures.events.push(`reset:${caseId}`);
+  it("aborts when fixture creation fails", async () => {
+    const lifecycle = new RecordingFixtureLifecycle();
+    lifecycle.create = async () => {
+      lifecycle.events.push("create");
       throw new Error(
         JSON.stringify({
           database_url: "postgresql://suite:fixture-canary@db/test",
@@ -323,7 +316,7 @@ describe(AuthorizationRunner.name, () => {
     });
 
     const report = await new AuthorizationRunner({
-      fixtures,
+      lifecycle,
       httpClient,
     }).run(suite);
 
@@ -335,20 +328,12 @@ describe(AuthorizationRunner.name, () => {
       },
     ]);
     expect(httpClient.paths).toEqual([]);
-    expect(fixtures.events).toEqual(["install", "reset:a", "dispose"]);
+    expect(lifecycle.events).toEqual(["create"]);
   });
 
-  it("disposes with an independent signal when execution is cancelled", async () => {
+  it("disposes after execution cancellation", async () => {
     const controller = new AbortController();
-    const fixtures = new RecordingFixtureSandbox();
-    let disposalWasCancelled = false;
-    fixtures.dispose = async (_fixture, signal) => {
-      disposalWasCancelled = signal.aborted;
-      fixtures.events.push("dispose");
-      if (signal.aborted) {
-        throw new Error("cleanup cancelled");
-      }
-    };
+    const lifecycle = new RecordingFixtureLifecycle();
     const httpClient: HttpClient = {
       execute: async () => {
         controller.abort();
@@ -362,18 +347,17 @@ describe(AuthorizationRunner.name, () => {
       ],
     });
 
-    const report = await new AuthorizationRunner({ fixtures, httpClient }).run(
+    const report = await new AuthorizationRunner({ lifecycle, httpClient }).run(
       suite,
       controller.signal,
     );
 
-    expect(disposalWasCancelled).toBe(false);
     expect(report.outcome).toBe("passed");
-    expect(fixtures.events).toEqual(["install", "reset:a", "dispose"]);
+    expect(lifecycle.events).toEqual(["create", "dispose"]);
   });
 
   it("classifies reporter failures as framework defects", async () => {
-    const fixtures = new RecordingFixtureSandbox();
+    const lifecycle = new RecordingFixtureLifecycle();
     const successfulReporter = new RecordingReporter();
     const suite = new AuthorizationSuite({
       id: "reporter-failure-suite",
@@ -391,7 +375,7 @@ describe(AuthorizationRunner.name, () => {
     });
 
     const report = await new AuthorizationRunner({
-      fixtures,
+      lifecycle,
       httpClient: new RecordingHttpClient(),
     }).run(suite);
 
@@ -407,6 +391,6 @@ describe(AuthorizationRunner.name, () => {
       "passed",
       "aborted",
     ]);
-    expect(fixtures.events).toEqual(["install", "dispose"]);
+    expect(lifecycle.events).toEqual([]);
   });
 });

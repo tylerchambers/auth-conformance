@@ -48,9 +48,12 @@ See [docs/API_REDESIGN.md](docs/API_REDESIGN.md) for the complete contract.
 
 ```
 packages/conformance/   the library (this workspace's only package)
-  src/authoring.ts      public contract, sessions, inventory, and run entry
+  src/authoring.ts      four-symbol public API facade
+  src/authoring-*.ts    contract building, expectations, and execution
+  src/openapi-inventory.ts
+                        OpenAPI operation discovery for rules
   src/model.ts          internal Actor / Operation / AuthorizationCase IR
-  src/runner.ts         internal suite, executor, and reporting engine
+  src/runner.ts         internal execution and reporting engine
   tests/                bun:test suite
 ```
 
