@@ -9,8 +9,8 @@ redacted reports for policy mismatches.
 
 ## Install
 
-This repository does not document a public package release. Install a package
-artifact supplied by your project or pack this checkout:
+The package is not published to npm yet. Install a package artifact supplied by
+your project or pack this checkout:
 
 ```bash
 bun add /absolute/path/to/auth-conformance-core.tgz

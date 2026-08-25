@@ -34,8 +34,8 @@ bun test packages/conformance/tests/authoring.test.ts
 That installs the workspace and runs the public authoring API tests. To verify
 the complete repository, run the commands in [Development](#development).
 
-The package is not documented as publicly published. To try the package artifact
-from this checkout:
+The package is not published to npm yet. To try the package artifact from this
+checkout:
 
 ```bash
 cd packages/conformance
