@@ -11,7 +11,7 @@ bun install --frozen-lockfile
 bun run --cwd examples/hono-user-admin test
 ```
 
-The runnable [Hono user/admin example](examples/hono-user-admin) starts a real loopback server and checks seven authorization cases.
+The runnable [Hono user/admin example](examples/hono-user-admin) starts a real loopback server and checks nine bearer- and cookie-auth cases.
 
 ## 🧪 Define a contract
 
@@ -72,7 +72,9 @@ contract
   .as("user")
   .expectError(403);
 
-const report = await runAuthorizationTests(contract.build());
+const report = await runAuthorizationTests(contract.build(), {
+  signal: AbortSignal.timeout(30_000),
+});
 if (report.outcome !== "passed") {
   throw new Error(JSON.stringify(report, null, 2));
 }

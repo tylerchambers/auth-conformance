@@ -10,8 +10,10 @@ import { startServer, type UserAdminServer } from "../src/server.ts";
 
 type Fixture = {
   readonly adminToken: string;
+  readonly invalidSessionId: string;
   readonly otherUserId: string;
   readonly ownUserId: string;
+  readonly sessionId: string;
   readonly userToken: string;
 };
 
@@ -34,12 +36,16 @@ test("the user and admin authorization contract passes", async () => {
       async create() {
         return {
           adminToken: "token-admin",
+          invalidSessionId: "invalid-session",
           otherUserId: "user-2",
           ownUserId: "user-1",
+          sessionId: server.createUserSession("user-1"),
           userToken: "token-user-1",
         };
       },
-      async dispose() {},
+      async dispose(fixture) {
+        server.deleteSession(fixture.sessionId);
+      },
     },
   })
     .actor("anonymous", sessions.anonymous())
@@ -51,6 +57,16 @@ test("the user and admin authorization contract passes", async () => {
     .actor(
       "admin",
       sessions.bearer(({ fixture }) => fixture.adminToken),
+    )
+    .actor(
+      "cookie-user",
+      sessions.cookies(({ fixture }) => ({ session: fixture.sessionId })),
+    )
+    .actor(
+      "invalid-cookie",
+      sessions.cookies(({ fixture }) => ({
+        session: fixture.invalidSessionId,
+      })),
     );
 
   contract
@@ -76,6 +92,22 @@ test("the user and admin authorization contract passes", async () => {
       params: { userId: ({ fixture }) => fixture.ownUserId },
     })
     .expectBody({ id: "user-1" });
+
+  contract
+    .case("cookie sessions can read their own resource")
+    .as("cookie-user")
+    .get("/users/:userId", {
+      params: { userId: ({ fixture }) => fixture.ownUserId },
+    })
+    .expectBody({ id: "user-1" });
+
+  contract
+    .case("invalid cookie sessions are rejected")
+    .as("invalid-cookie")
+    .get("/users/:userId", {
+      params: { userId: ({ fixture }) => fixture.ownUserId },
+    })
+    .expectError(401);
 
   contract
     .case("users cannot discover another user's resource")
@@ -110,5 +142,5 @@ test("the user and admin authorization contract passes", async () => {
   if (report.outcome !== "passed") {
     throw new Error(JSON.stringify(report, null, 2));
   }
-  expect(report.summary.passed).toBe(7);
+  expect(report.summary.passed).toBe(9);
 });
