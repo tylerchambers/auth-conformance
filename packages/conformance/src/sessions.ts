@@ -1,9 +1,18 @@
+/** Supplies credentials merged into a case request immediately before sending. */
 export type Session = {
   readonly headers?: Readonly<Record<string, string>>;
   readonly cookies?: Readonly<Record<string, string>>;
 };
 
+/** Gives a session factory access to its case's isolated fixture. */
 export type SessionContext<Fixture> = { readonly fixture: Fixture };
+/**
+ * Creates credentials for one case from that case's fixture.
+ *
+ * The runner invokes the factory once per case after fixture creation. Returned
+ * header names override matching request headers case-insensitively; returned
+ * cookies append to an existing Cookie header and values are URI-encoded.
+ */
 export type SessionFactory<Fixture> = (
   context: SessionContext<Fixture>,
 ) => Session | Promise<Session>;
@@ -25,10 +34,12 @@ function resolveFactoryValue<Fixture, Value>(
   return isFactoryValue(value) ? value(context) : value;
 }
 
+/** Creates a session factory that adds no credentials. */
 function anonymous<Fixture>(): SessionFactory<Fixture> {
   return () => ({});
 }
 
+/** Creates a session factory that sets a Bearer Authorization header. */
 function bearer<Fixture>(
   token: FactoryValue<Fixture, string>,
 ): SessionFactory<Fixture> {
@@ -39,6 +50,7 @@ function bearer<Fixture>(
   });
 }
 
+/** Creates a session factory that sets a configurable API-key header. */
 function apiKey<Fixture>(
   headerName: string,
   key: FactoryValue<Fixture, string>,
@@ -48,6 +60,7 @@ function apiKey<Fixture>(
   });
 }
 
+/** Creates a session factory that appends fixture-derived cookies. */
 function cookies<Fixture>(
   value: FactoryValue<Fixture, Readonly<Record<string, string>>>,
 ): SessionFactory<Fixture> {
@@ -56,6 +69,7 @@ function cookies<Fixture>(
   });
 }
 
+/** Creates a session factory from arbitrary fixture-derived headers. */
 function fromHeaders<Fixture>(
   value: FactoryValue<Fixture, Readonly<Record<string, string>>>,
 ): SessionFactory<Fixture> {
@@ -64,6 +78,13 @@ function fromHeaders<Fixture>(
   });
 }
 
+/**
+ * Provides session factories for common HTTP authentication mechanisms.
+ *
+ * Factory inputs may be literals or callbacks evaluated against each case's
+ * fresh fixture. Use `fromHeaders` when a protocol does not match a specialized
+ * helper.
+ */
 export const sessions = Object.freeze({
   anonymous,
   bearer,

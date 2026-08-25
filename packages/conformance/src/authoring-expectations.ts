@@ -1,10 +1,18 @@
 import { inspect, isDeepStrictEqual } from "node:util";
 import { ExpectedResponse, type ResponseMismatch } from "./model.ts";
 
+/** Extracts a stable application error code from an arbitrary response body. */
 export type ErrorEnvelope = {
+  /** Reads the code compared by `expectError`; returns a nonmatch when absent. */
   readonly code: (body: unknown) => unknown;
 };
 
+/**
+ * Checks a response using the same isolated fixture that built its request.
+ *
+ * Throwing or returning a rejected promise records a policy mismatch instead
+ * of aborting the remaining suite.
+ */
 export type CaseAssertion<Fixture> = (input: {
   readonly response: {
     readonly status: number;

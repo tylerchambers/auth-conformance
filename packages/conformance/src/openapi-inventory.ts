@@ -7,6 +7,7 @@ type AuthoringHttpMethod = Extract<
   "DELETE" | "GET" | "HEAD" | "PATCH" | "POST" | "PUT"
 >;
 
+/** Describes one supported operation discovered in an OpenAPI document. */
 export type InventoryOperation = {
   readonly operationId: string;
   readonly method: AuthoringHttpMethod;
@@ -15,6 +16,7 @@ export type InventoryOperation = {
 };
 
 const operationInventoryBrand = Symbol("OperationInventory");
+/** Holds validated operations for inventory-backed authorization rules. */
 export type OperationInventory = {
   readonly [operationInventoryBrand]: true;
   readonly operations: readonly InventoryOperation[];
@@ -41,6 +43,14 @@ const authoringMethodByOpenApiMethod: Record<
   put: "PUT",
 };
 
+/**
+ * Builds an immutable operation inventory from a document or local JSON file.
+ *
+ * Supports DELETE, GET, HEAD, PATCH, POST, and PUT operations. Every discovered
+ * operation must have a unique `operationId`; remote URLs are not fetched.
+ *
+ * @throws When the document shape, operation IDs, tags, or URL are invalid.
+ */
 export function fromOpenApi(documentOrUrl: unknown): OperationInventory {
   const document = readOpenApiDocument(documentOrUrl);
   if (!isPlainRecord(document.paths)) {
