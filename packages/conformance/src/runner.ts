@@ -43,8 +43,9 @@ export type CaseReport = {
  * Summarizes a complete authorization run without exposing request credentials.
  *
  * A failed outcome means execution completed with one or more mismatches. An
- * aborted outcome means a fixture or framework failure prevented the runner
- * from attempting all cases; `summary.skipped` records the remainder.
+ * aborted outcome means a fixture or framework failure occurred; all cases may
+ * already have run when report delivery fails. `summary.skipped` records only
+ * cases that were not attempted.
  */
 export type SuiteReport = {
   readonly suiteId: string;

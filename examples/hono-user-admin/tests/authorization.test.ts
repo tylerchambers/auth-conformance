@@ -43,6 +43,7 @@ test("the user and admin authorization contract passes", async () => {
     },
   })
     .actor("anonymous", sessions.anonymous())
+    .actor("raw-token", sessions.fromHeaders({ Authorization: "token-user-1" }))
     .actor(
       "user",
       sessions.bearer(({ fixture }) => fixture.userToken),
@@ -55,6 +56,14 @@ test("the user and admin authorization contract passes", async () => {
   contract
     .case("anonymous callers cannot read a user")
     .as("anonymous")
+    .get("/users/:userId", {
+      params: { userId: ({ fixture }) => fixture.ownUserId },
+    })
+    .expectError(401);
+
+  contract
+    .case("raw tokens without a Bearer scheme are rejected")
+    .as("raw-token")
     .get("/users/:userId", {
       params: { userId: ({ fixture }) => fixture.ownUserId },
     })
@@ -101,5 +110,5 @@ test("the user and admin authorization contract passes", async () => {
   if (report.outcome !== "passed") {
     throw new Error(JSON.stringify(report, null, 2));
   }
-  expect(report.summary.passed).toBe(6);
+  expect(report.summary.passed).toBe(7);
 });

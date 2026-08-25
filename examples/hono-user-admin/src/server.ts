@@ -48,7 +48,12 @@ app.get("/admin/audit", (context) => {
 function authenticate(
   authorization: string | undefined,
 ): Principal | undefined {
-  const token = authorization?.replace(/^Bearer /, "");
+  if (authorization === undefined) {
+    return undefined;
+  }
+
+  const match = /^Bearer +([A-Za-z0-9\-._~+/]+=*)$/i.exec(authorization);
+  const token = match?.[1];
   return token === undefined ? undefined : principals.get(token);
 }
 
