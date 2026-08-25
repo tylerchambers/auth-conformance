@@ -96,6 +96,17 @@ export async function runAuthorizationCases<Fixture>(
   );
 }
 
+/**
+ * Runs a built contract serially against its configured service endpoint.
+ *
+ * Creates and disposes a fresh fixture for each case, applies the selected
+ * session immediately before its request, and returns failures in the report.
+ * Fixture and framework failures abort any remaining cases; transport failures
+ * and policy mismatches are reported per case and execution continues. This
+ * function does not throw merely because cases fail.
+ *
+ * @throws When passed a value not produced by the contract builder.
+ */
 export async function runAuthorizationTests<Fixture>(
   contract: BuiltAuthorizationContract<Fixture>,
 ): Promise<SuiteReport> {

@@ -15,6 +15,7 @@ export type HttpMethod =
   | "PUT"
   | "TRACE";
 
+/** Describes the complete request sent for one authorization case. */
 export type HttpRequest = {
   readonly method: HttpMethod;
   readonly path: string;
@@ -22,10 +23,12 @@ export type HttpRequest = {
   readonly body?: unknown;
 };
 
+/** Describes a fixture-derived request before its declared method is applied. */
 export type OperationRequest = Omit<HttpRequest, "method"> & {
   readonly method?: never;
 };
 
+/** Captures the response made available to expectations and reports. */
 export type HttpResponse = {
   readonly status: number;
   readonly headers: Readonly<Record<string, string>>;
@@ -62,7 +65,12 @@ export type ActorOptions<TFixture> = ActorCommonOptions &
       }
   );
 
-/** A named principal capability used by declarative authorization cases. */
+/**
+ * Represents a named principal selected by declarative authorization cases.
+ *
+ * Contract authors normally create actors with the fluent `actor()` method.
+ * Credentials are acquired for each case and are not retained in reports.
+ */
 export class Actor<TFixture> {
   readonly name: string;
   readonly authentication: AuthenticationKind;
@@ -107,7 +115,12 @@ export class ResourceReference<TFixture, TValue> {
   }
 }
 
-/** Builds one public HTTP operation from the current fixture context. */
+/**
+ * Represents the public HTTP operation executed by an authorization case.
+ *
+ * Contract authors normally declare operations through verb-specific fluent
+ * methods. Request construction runs against each case's isolated fixture.
+ */
 export class Operation<TFixture> {
   readonly id: string;
   readonly method: HttpMethod;
@@ -123,13 +136,16 @@ export class Operation<TFixture> {
     this.buildRequestFromFixture = options.buildRequest;
   }
 
+  /** Builds a complete request from the supplied case fixture. */
   buildRequest(fixture: TFixture): HttpRequest {
     return { ...this.buildRequestFromFixture(fixture), method: this.method };
   }
 }
 
+/** Distinguishes an unmet policy from an unusable response shape. */
 export type ResponseMismatchKind = "policy" | "malformed-response";
 
+/** Describes one safe, reportable response expectation failure. */
 export type ResponseMismatch = {
   readonly kind: ResponseMismatchKind;
   readonly message: string;
@@ -143,7 +159,12 @@ export type ExpectedResponseOptions = {
   ) => readonly ResponseMismatch[] | Promise<readonly ResponseMismatch[]>;
 };
 
-/** Describes safe observable response expectations without retaining credentials. */
+/**
+ * Evaluates safe, observable response expectations without retaining credentials.
+ *
+ * Contract authors normally select an expectation through the fluent terminal
+ * methods. Evaluation may use the same fixture that built the case request.
+ */
 export class ExpectedResponse {
   readonly description: string;
   private readonly evaluateResponse: (
@@ -156,6 +177,7 @@ export class ExpectedResponse {
     this.evaluateResponse = options.evaluate;
   }
 
+  /** Creates an expectation that compares only the HTTP status. */
   static status(status: number): ExpectedResponse {
     return new ExpectedResponse({
       description: `HTTP ${status}`,
@@ -171,6 +193,7 @@ export class ExpectedResponse {
     });
   }
 
+  /** Evaluates the response and returns every discovered mismatch. */
   evaluate(
     response: HttpResponse,
     fixture?: unknown,
@@ -206,7 +229,12 @@ export type AuthorizationCaseOptions<TFixture> = {
   readonly tags?: readonly string[];
 };
 
-/** One named actor/action/expectation/postcondition scenario. */
+/**
+ * Represents one actor, operation, expectation, and optional postcondition scenario.
+ *
+ * Built contracts expose these immutable-by-convention values for inspection;
+ * authors normally create them through the fluent case and rule declarations.
+ */
 export class AuthorizationCase<TFixture> {
   readonly id: string;
   readonly actor: Actor<TFixture>;

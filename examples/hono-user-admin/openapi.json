@@ -1,0 +1,110 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Hono user/admin authorization example",
+    "version": "1.0.0"
+  },
+  "servers": [{ "url": "http://127.0.0.1:3000" }],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/users/{userId}": {
+      "get": {
+        "operationId": "getUser",
+        "summary": "Read a user resource",
+        "description": "Users may read themselves. Admins may read any user. Requests by a different normal user return 404 so the resource's existence is not disclosed.",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/admin/audit": {
+      "get": {
+        "operationId": "getAdminAudit",
+        "summary": "Read the admin-only audit summary",
+        "tags": ["admin"],
+        "responses": {
+          "200": {
+            "description": "The audit summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["activeUsers"],
+                  "properties": {
+                    "activeUsers": { "type": "integer", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Synthetic example tokens: token-user-1 and token-admin"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "required": ["id"],
+        "properties": { "id": { "type": "string" } }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": { "error": { "type": "string" } }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid bearer token",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The authenticated caller lacks the admin role",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The user does not exist or is hidden from this caller",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      }
+    }
+  }
+}

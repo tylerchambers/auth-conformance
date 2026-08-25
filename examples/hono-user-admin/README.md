@@ -1,0 +1,32 @@
+# Hono user/admin example
+
+A tiny Hono API with deterministic in-memory users and synthetic bearer tokens.
+It needs no secrets, database, or external service.
+
+From the repository root, start it with:
+
+```bash
+bun run --cwd examples/hono-user-admin start
+```
+
+The server listens on `http://127.0.0.1:3000`. Try the normal user and admin:
+
+```bash
+curl -H 'Authorization: Bearer token-user-1' http://127.0.0.1:3000/users/user-1
+curl -H 'Authorization: Bearer token-admin' http://127.0.0.1:3000/admin/audit
+```
+
+Run its real-loopback authorization contract with:
+
+```bash
+bun run --cwd examples/hono-user-admin test
+```
+
+The contract covers anonymous and malformed-bearer denial, own-user access,
+hidden cross-user access, admin cross-user access, and both denied and allowed
+admin-endpoint access. It loads [`openapi.json`](openapi.json) with `fromOpenApi`
+and uses the spec's `admin` tag to generate the normal-user denial case. A
+cross-user request returns `404` rather than `403` so it does not reveal whether
+the requested user exists.
+
+The OpenAPI 3.1 document is both API documentation and executable test input.

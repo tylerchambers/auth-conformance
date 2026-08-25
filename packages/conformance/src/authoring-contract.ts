@@ -24,6 +24,7 @@ import type {
 import type { FixtureLifecycle } from "./runner.ts";
 import type { Session, SessionContext, SessionFactory } from "./sessions.ts";
 
+/** Resolves a path parameter from either a literal or the case fixture. */
 type FixtureValue<Fixture> =
   | string
   | number
@@ -37,6 +38,7 @@ type PathParams<Path extends string> =
     ? SegmentParam<Segment> | PathParams<Rest>
     : SegmentParam<Path>;
 
+/** Supplies headers, a body, and any path parameters for a generated request. */
 type RequestBase = {
   readonly headers?: Readonly<Record<string, string>>;
   readonly body?: unknown;
@@ -58,63 +60,82 @@ type RequestArguments<Fixture, Path extends string> = [
   ? [request?: RequestForPath<Fixture, Path>]
   : [request: RequestForPath<Fixture, Path>];
 
+/** Selects OpenAPI operations by IDs or tags, but never both. */
 type OperationSelection =
   | { readonly ids: readonly string[]; readonly tags?: never }
   | { readonly tags: readonly string[]; readonly ids?: never };
 
+/** Configures a contract's endpoint, isolated fixtures, and optional inventory. */
 type AuthorizationContractCommonOptions<Fixture> = {
+  /** Identifies the suite in the returned report. */
   readonly name: string;
+  /** Resolves the service origin when the suite runs. */
   readonly baseUrl: () => string | URL;
+  /** Creates and disposes one isolated fixture for each case. */
   readonly lifecycle: FixtureLifecycle<Fixture>;
+  /** Enables inventory-backed rules over OpenAPI operations. */
   readonly operations?: OperationInventory;
 };
 
 type AuthorizationContractOptions<Fixture> =
   AuthorizationContractCommonOptions<Fixture> & {
+    /** Extracts an application error code for coded error expectations. */
     readonly error?: ErrorEnvelope;
   };
 
+/** Selects the actor for one explicitly declared case. */
 type CaseActorBuilder<
   Fixture,
   ActorName extends string,
   HasErrorEnvelope extends boolean,
 > = {
+  /** Sets a stable case ID instead of deriving one from the declaration. */
   id(id: string): CaseActorBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Selects a previously registered actor for the case. */
   as(
     actorName: ActorName,
   ): CaseOperationBuilder<Fixture, ActorName, HasErrorEnvelope>;
 };
 
+/** Selects the request performed by one explicitly declared case. */
 type CaseOperationBuilder<
   Fixture,
   ActorName extends string,
   HasErrorEnvelope extends boolean,
 > = {
+  /** Sets a stable case ID instead of deriving one from the declaration. */
   id(id: string): CaseOperationBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Builds a custom request when a verb-specific helper is insufficient. */
   request(
     method: HttpMethod,
     buildRequest: (context: SessionContext<Fixture>) => OperationRequest,
   ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Declares a GET request and resolves colon-prefixed path parameters. */
   get<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
   ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Declares a POST request and resolves colon-prefixed path parameters. */
   post<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
   ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Declares a PUT request and resolves colon-prefixed path parameters. */
   put<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
   ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Declares a PATCH request and resolves colon-prefixed path parameters. */
   patch<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
   ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Declares a DELETE request and resolves colon-prefixed path parameters. */
   delete<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
   ): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Declares a HEAD request and resolves colon-prefixed path parameters. */
   head<const Path extends string>(
     path: Path,
     ...request: RequestArguments<Fixture, NoInfer<Path>>
@@ -127,24 +148,33 @@ type ErrorExpectationArguments<HasErrorEnvelope extends boolean> =
     : [status: number];
 
 type ErrorExpectationTerminal<Result, HasErrorEnvelope extends boolean> = {
+  /** Completes the declaration with an error status and optional error code. */
   expectError(
     ...expectation: ErrorExpectationArguments<HasErrorEnvelope>
   ): Result;
 };
 
+/** Completes a declaration with exactly one observable response expectation. */
 type ExpectationTerminals<Fixture, Result, HasErrorEnvelope extends boolean> = {
+  /** Completes the declaration with an expected HTTP status. */
   expectStatus(status: number): Result;
+  /** Completes the declaration with an exact deep body comparison. */
   expectBody(value: unknown): Result;
+  /** Completes the declaration with a recursive subset body comparison. */
   expectBodyContaining(subset: unknown): Result;
+  /** Completes the declaration by requiring HTTP 204 and no body. */
   expectNoContent(): Result;
+  /** Completes the declaration with a fixture-aware custom assertion. */
   expectThat(assertion: CaseAssertion<Fixture>): Result;
 } & ErrorExpectationTerminal<Result, HasErrorEnvelope>;
 
+/** Completes one explicitly declared case with its sole expectation. */
 type CaseExpectationBuilder<
   Fixture,
   ActorName extends string,
   HasErrorEnvelope extends boolean,
 > = {
+  /** Sets a stable case ID instead of deriving one from the declaration. */
   id(id: string): CaseExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
 } & ExpectationTerminals<
   Fixture,
@@ -152,22 +182,27 @@ type CaseExpectationBuilder<
   HasErrorEnvelope
 >;
 
+/** Selects which inventoried operations a rule expands across. */
 type RuleSelectionBuilder<
   Fixture,
   ActorName extends string,
   HasErrorEnvelope extends boolean,
 > = {
+  /** Selects every operation in the configured inventory. */
   forAllOperations(): RuleActorBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Selects inventoried operations matching the supplied IDs or tags. */
   forOperations(
     selection: OperationSelection,
   ): RuleActorBuilder<Fixture, ActorName, HasErrorEnvelope>;
 };
 
+/** Selects the actor used for every case expanded from a rule. */
 type RuleActorBuilder<
   Fixture,
   ActorName extends string,
   HasErrorEnvelope extends boolean,
 > = {
+  /** Selects a previously registered actor for the rule. */
   as(
     actorName: ActorName,
   ): RuleExpectationBuilder<Fixture, ActorName, HasErrorEnvelope>;
@@ -183,24 +218,30 @@ type RuleExpectationBuilder<
   HasErrorEnvelope
 >;
 
+/** Builds a mutable declaration chain and an immutable executable contract. */
 type AuthorizationContract<
   Fixture,
   ActorName extends string,
   HasErrorEnvelope extends boolean,
 > = {
+  /** Registers a named session factory available to later declarations. */
   actor<Name extends string>(
     name: Name,
     factory: SessionFactory<Fixture>,
   ): AuthorizationContract<Fixture, ActorName | Name, HasErrorEnvelope>;
+  /** Begins one explicit actor-operation authorization case. */
   case(
     description: string,
   ): CaseActorBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Begins an inventory-backed rule that expands into ordinary cases. */
   rule(
     description: string,
   ): RuleSelectionBuilder<Fixture, ActorName, HasErrorEnvelope>;
+  /** Finalizes declarations into deterministic, immutable cases. */
   build(): BuiltAuthorizationContract<Fixture>;
 };
 
+/** Carries execution settings alongside the built cases without exposing them. */
 type ContractMetadata<Fixture> = {
   readonly name: string;
   readonly baseUrl: () => string | URL;
@@ -208,6 +249,12 @@ type ContractMetadata<Fixture> = {
 };
 
 export const contractMetadata = Symbol("AuthorizationContractMetadata");
+/**
+ * Contains deterministic cases plus the metadata required by the public runner.
+ *
+ * Create this value with `authorizationContract(...).build()` rather than by
+ * constructing an array directly.
+ */
 export type BuiltAuthorizationContract<Fixture> =
   readonly AuthorizationCase<Fixture>[] & {
     readonly [contractMetadata]: ContractMetadata<Fixture>;
@@ -247,11 +294,23 @@ type RuleDraft<Fixture> = DeclarationDraft & {
   actor?: Actor<Fixture>;
 };
 
+/**
+ * Creates a fluent authorization contract with coded error expectations.
+ *
+ * The returned builder accumulates declarations until `build()` validates and
+ * freezes them. Register actors before selecting them in cases or rules.
+ */
 export function authorizationContract<Fixture>(
   options: AuthorizationContractCommonOptions<Fixture> & {
     readonly error: ErrorEnvelope;
   },
 ): AuthorizationContract<Fixture, never, true>;
+/**
+ * Creates a fluent authorization contract with status-only error expectations.
+ *
+ * The returned builder accumulates declarations until `build()` validates and
+ * freezes them. Register actors before selecting them in cases or rules.
+ */
 export function authorizationContract<Fixture>(
   options: AuthorizationContractCommonOptions<Fixture> & {
     readonly error?: never;

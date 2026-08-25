@@ -8,9 +8,9 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "bun run --cwd packages/conformance build",
+    "build": "bun run --cwd packages/conformance build && bun run --cwd examples/hono-user-admin build",
     "format:check": "biome check .",
-    "test": "bun test packages",
+    "test": "bun run build && bun test packages examples",
     "test:package": "bun scripts/test-package.ts",
     "typecheck": "tsc --noEmit --pretty false"
   },

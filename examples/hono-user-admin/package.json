@@ -1,0 +1,15 @@
+{
+  "name": "@auth-conformance/example-hono-user-admin",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit --pretty false -p tsconfig.json",
+    "start": "bun run src/main.ts",
+    "test": "bun run --cwd ../.. build && bun test tests",
+    "typecheck": "tsc --noEmit --pretty false"
+  },
+  "dependencies": {
+    "@auth-conformance/core": "workspace:*",
+    "hono": "4.13.4"
+  }
+}

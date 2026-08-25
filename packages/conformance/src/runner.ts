@@ -12,6 +12,7 @@ import {
 import { OpenApiCoveragePolicy } from "./openapi-coverage-policy.ts";
 import { SensitiveValueRedactor } from "./redaction.ts";
 
+/** Classifies whether a failure is a policy result or an execution problem. */
 export type FailureCategory =
   | "policy-mismatch"
   | "malformed-response"
@@ -19,11 +20,13 @@ export type FailureCategory =
   | "fixture-failure"
   | "framework-defect";
 
+/** Describes one redacted failure suitable for reporting. */
 export type AuthorizationFailure = {
   readonly category: FailureCategory;
   readonly message: string;
 };
 
+/** Summarizes the observable result of one executed authorization case. */
 export type CaseReport = {
   readonly caseId: string;
   readonly actorName: string;
@@ -36,6 +39,14 @@ export type CaseReport = {
   readonly failures: readonly AuthorizationFailure[];
 };
 
+/**
+ * Summarizes a complete authorization run without exposing request credentials.
+ *
+ * A failed outcome means execution completed with one or more mismatches. An
+ * aborted outcome means a fixture or framework failure occurred; all cases may
+ * already have run when report delivery fails. `summary.skipped` records only
+ * cases that were not attempted.
+ */
 export type SuiteReport = {
   readonly suiteId: string;
   readonly outcome: "passed" | "failed" | "aborted";
@@ -93,8 +104,17 @@ export type OperationClassification =
       readonly rationale: string;
     };
 
+/**
+ * Owns the isolated state used to build credentials and requests for each case.
+ *
+ * The runner creates one fixture per case and always attempts disposal after a
+ * successful creation, including when request execution or expectations fail.
+ * A create or dispose failure aborts the remaining suite.
+ */
 export interface FixtureLifecycle<TFixture> {
+  /** Creates fresh state for the next authorization case. */
   create(): Promise<TFixture>;
+  /** Disposes state after its case finishes or fails. */
   dispose(fixture: TFixture): Promise<void>;
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "@auth-conformance/core",
   "version": "0.1.0",
-  "description": "Declarative authorization contract testing for TypeScript HTTP APIs",
+  "description": "Authorization contract testing for any HTTP API, authored in TypeScript",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
