@@ -1,0 +1,748 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "repository": "tylerchambers/agent-pager-cloud",
+    "commit": "a87cf00af3ab2792ae5eb7382aaae3326ad524b0",
+    "refAtExtraction": "origin/main",
+    "extractedOn": "2026-08-24",
+    "declaredHistoricalCaseCount": 249,
+    "sourcePaths": [
+      "tools/ping-the-human-authorization-suite/src/ping-the-human-invariants.ts",
+      "tools/ping-the-human-authorization-suite/src/ping-the-human-admin-invariants.ts",
+      "tools/ping-the-human-authorization-suite/src/ping-the-human-protocol-invariants.ts",
+      "tools/ping-the-human-authorization-suite/src/ping-the-human-actors.ts",
+      "tools/ping-the-human-authorization-suite/src/ping-the-human-operations.ts",
+      "tools/ping-the-human-authorization-suite/src/ping-the-human-expectations.ts"
+    ]
+  },
+  "selection": {
+    "method": "Balanced representative slice across tracer, admin, and protocol behavior; prioritize stable IDs, actor/session boundaries, exact transport shapes, precedence rules, and security-sensitive outcomes.",
+    "limitations": [
+      "Primary request behavior only; historical postcondition observation requests and connected-journey follow-ups are out of scope.",
+      "Success cases that historically used richer custom evaluators preserve the status and documented shape, not byte-for-byte response equivalence.",
+      "All credential and sensitive resource values are synthetic placeholders."
+    ]
+  },
+  "cases": [
+    {
+      "category": "tracer",
+      "id": "account.me.anonymous",
+      "actor": "anonymous",
+      "session": "none",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "headers": {},
+        "body": null
+      },
+      "expected": {
+        "status": 401,
+        "body": {
+          "code": "UNAUTHENTICATED"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Anonymous authentication boundary."
+    },
+    {
+      "category": "tracer",
+      "id": "account.me.cli-bearer-a",
+      "actor": "cliBearerA",
+      "session": "bearer:userA",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "headers": {
+          "Authorization": "Bearer <CLI_BEARER_A>"
+        },
+        "body": null
+      },
+      "expected": {
+        "status": 200,
+        "body": null,
+        "assertion": "status-only"
+      },
+      "selectionRationale": "CLI bearer maps to User A."
+    },
+    {
+      "category": "tracer",
+      "id": "account.me.revoked-user",
+      "actor": "revokedUser",
+      "session": "browser:revokedUser",
+      "request": {
+        "method": "GET",
+        "path": "/v1/me",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_REVOKEDUSER>"
+        },
+        "body": null
+      },
+      "expected": {
+        "status": 403,
+        "body": {
+          "code": "BETA_ACCESS_REQUIRED"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Revoked entitlement remains denied."
+    },
+    {
+      "category": "admin",
+      "id": "admin.beta.grant.missing-origin",
+      "actor": "adminWithoutBeta",
+      "session": "browser:adminWithoutBeta",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/admin/users/<NONEXISTENT_USER_ID>/beta-access",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>"
+        },
+        "body": null
+      },
+      "expected": {
+        "status": 403,
+        "body": {
+          "code": "INVALID_ADMIN_REQUEST"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Admin mutation fails closed without Origin."
+    },
+    {
+      "category": "admin",
+      "id": "admin.beta.grant.non-admin",
+      "actor": "nonAdmin",
+      "session": "browser:nonAdmin",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/admin/users/<USER_WITHOUT_BETA_ID>/beta-access",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_NONADMIN>",
+          "Origin": "<APP_ORIGIN>"
+        },
+        "body": null
+      },
+      "expected": {
+        "status": 403,
+        "body": {
+          "code": "ADMIN_ACCESS_REQUIRED"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Non-administrator cannot grant beta access."
+    },
+    {
+      "category": "admin",
+      "id": "admin.beta.revoke.missing-access",
+      "actor": "adminWithoutBeta",
+      "session": "browser:adminWithoutBeta",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/admin/users/<USER_WITHOUT_BETA_ID>/beta-access",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
+          "Origin": "<APP_ORIGIN>"
+        },
+        "body": null
+      },
+      "expected": {
+        "status": 404,
+        "body": {
+          "code": "BETA_ACCESS_NOT_FOUND"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Missing entitlement has a stable not-found outcome."
+    },
+    {
+      "category": "admin",
+      "id": "admin.invitations.create.admin-without-beta",
+      "actor": "adminWithoutBeta",
+      "session": "browser:adminWithoutBeta",
+      "request": {
+        "method": "POST",
+        "path": "/v1/admin/invitations",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
+          "Origin": "<APP_ORIGIN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "email": "<REVOKED_INVITATION_EMAIL>"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "body": null,
+        "assertion": "status-only"
+      },
+      "selectionRationale": "Administrator capability is independent of beta entitlement."
+    },
+    {
+      "category": "admin",
+      "id": "admin.invitations.create.foreign-origin",
+      "actor": "adminWithoutBeta",
+      "session": "browser:adminWithoutBeta",
+      "request": {
+        "method": "POST",
+        "path": "/v1/admin/invitations",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
+          "Origin": "https://authorization-suite.invalid",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "email": "malformed-email"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "body": {
+          "code": "INVALID_ADMIN_REQUEST"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Origin validation precedes malformed input."
+    },
+    {
+      "category": "admin",
+      "id": "admin.invitations.create.ordering.anonymous",
+      "actor": "anonymous",
+      "session": "none",
+      "request": {
+        "method": "POST",
+        "path": "/v1/admin/invitations",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "email": "malformed-email"
+        }
+      },
+      "expected": {
+        "status": 401,
+        "body": {
+          "code": "UNAUTHENTICATED"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Authentication precedes origin and input validation."
+    },
+    {
+      "category": "admin",
+      "id": "admin.invitations.revoke.nonexistent",
+      "actor": "adminWithoutBeta",
+      "session": "browser:adminWithoutBeta",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/admin/invitations/<NONEXISTENT_INVITATION_ID>",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
+          "Origin": "<APP_ORIGIN>"
+        },
+        "body": null
+      },
+      "expected": {
+        "status": 404,
+        "body": {
+          "code": "INVITATION_NOT_FOUND"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Nonexistent invitation is stable not-found."
+    },
+    {
+      "category": "admin",
+      "id": "admin.me.admin-without-beta",
+      "actor": "adminWithoutBeta",
+      "session": "browser:adminWithoutBeta",
+      "request": {
+        "method": "GET",
+        "path": "/v1/admin/me",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>"
+        },
+        "body": null
+      },
+      "expected": {
+        "status": 200,
+        "body": null,
+        "assertion": "status-only"
+      },
+      "selectionRationale": "Administrator identity does not require beta access."
+    },
+    {
+      "category": "admin",
+      "id": "admin.me.anonymous",
+      "actor": "anonymous",
+      "session": "none",
+      "request": {
+        "method": "GET",
+        "path": "/v1/admin/me",
+        "headers": {},
+        "body": null
+      },
+      "expected": {
+        "status": 401,
+        "body": {
+          "code": "UNAUTHENTICATED"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Admin identity endpoint authenticates."
+    },
+    {
+      "category": "admin",
+      "id": "admin.me.non-admin",
+      "actor": "nonAdmin",
+      "session": "browser:nonAdmin",
+      "request": {
+        "method": "GET",
+        "path": "/v1/admin/me",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_NONADMIN>"
+        },
+        "body": null
+      },
+      "expected": {
+        "status": 403,
+        "body": {
+          "code": "ADMIN_ACCESS_REQUIRED"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Authenticated non-admin remains denied."
+    },
+    {
+      "category": "tracer",
+      "id": "devices.rename.user-a.owner",
+      "actor": "userA",
+      "session": "browser:userA",
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/devices/<USER_A_DEVICE_ID>",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
+          "Origin": "<APP_ORIGIN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "nickname": "Renamed by owner"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "body": null,
+        "assertion": "status-only"
+      },
+      "selectionRationale": "Owner can mutate own device."
+    },
+    {
+      "category": "tracer",
+      "id": "devices.revoke.user-a.foreign-user-b",
+      "actor": "userA",
+      "session": "browser:userA",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/devices/<USER_B_DEVICE_ID>",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
+          "Origin": "<APP_ORIGIN>"
+        },
+        "body": null
+      },
+      "expected": {
+        "status": 404,
+        "body": {
+          "code": "DEVICE_NOT_FOUND"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Foreign ownership is concealed as not-found."
+    },
+    {
+      "category": "tracer",
+      "id": "pings.accept.browser-user-a",
+      "actor": "userA",
+      "session": "browser:userA",
+      "request": {
+        "method": "POST",
+        "path": "/v1/pings",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "authorization_suite_ping_123456"
+        },
+        "body": {
+          "message": "Authorization suite ping"
+        }
+      },
+      "expected": {
+        "status": 401,
+        "body": {
+          "code": "UNAUTHENTICATED"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Browser sessions are rejected at bearer-only ping endpoint."
+    },
+    {
+      "category": "tracer",
+      "id": "pings.accept.cli-bearer-a",
+      "actor": "cliBearerA",
+      "session": "bearer:userA",
+      "request": {
+        "method": "POST",
+        "path": "/v1/pings",
+        "headers": {
+          "Authorization": "Bearer <CLI_BEARER_A>",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "authorization_suite_ping_123456"
+        },
+        "body": {
+          "message": "Authorization suite ping"
+        }
+      },
+      "expected": {
+        "status": 202,
+        "body": null,
+        "assertion": "status-only"
+      },
+      "selectionRationale": "CLI bearer is accepted by bearer-only ping endpoint."
+    },
+    {
+      "category": "protocol",
+      "id": "protocol.approve.foreign-session",
+      "actor": "userB",
+      "session": "browser:userB",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/device/approve",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERB>",
+          "Origin": "<APP_ORIGIN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "userCode": "<CLAIMED_USER_A_USER_CODE>",
+          "nickname": "Suite CLI"
+        }
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "invalid_request"
+        },
+        "assertion": "oauth-error"
+      },
+      "selectionRationale": "A foreign browser session cannot approve another owner's claim."
+    },
+    {
+      "category": "protocol",
+      "id": "protocol.claim.anonymous",
+      "actor": "anonymous",
+      "session": "none",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/device",
+        "headers": {
+          "Origin": "<APP_ORIGIN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "userCode": "<PENDING_USER_CODE>"
+        }
+      },
+      "expected": {
+        "status": 401,
+        "body": {
+          "error": "unauthorized"
+        },
+        "assertion": "oauth-error"
+      },
+      "selectionRationale": "Claim requires a browser session."
+    },
+    {
+      "category": "protocol",
+      "id": "protocol.claim.exact-origin",
+      "actor": "userA",
+      "session": "browser:userA",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/device",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
+          "Origin": "<APP_ORIGIN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "userCode": "<PENDING_USER_CODE>"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "status": "pending",
+          "user_code": "<PENDING_USER_CODE>"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Exact origin and owner session permit claim."
+    },
+    {
+      "category": "protocol",
+      "id": "protocol.claim.missing-origin",
+      "actor": "userA",
+      "session": "browser:userA",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/device",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "userCode": "<PENDING_USER_CODE>"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "body": {
+          "error": "invalid_request"
+        },
+        "assertion": "oauth-error"
+      },
+      "selectionRationale": "Claim fails closed without Origin."
+    },
+    {
+      "category": "protocol",
+      "id": "protocol.claim.revoked-user",
+      "actor": "revokedUser",
+      "session": "browser:revokedUser",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/device",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_REVOKEDUSER>",
+          "Origin": "<APP_ORIGIN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "userCode": "<PENDING_USER_CODE>"
+        }
+      },
+      "expected": {
+        "status": 403,
+        "body": {
+          "error": "access_denied"
+        },
+        "assertion": "oauth-error"
+      },
+      "selectionRationale": "Revoked beta access denies protocol claim."
+    },
+    {
+      "category": "protocol",
+      "id": "protocol.deny.active-owner",
+      "actor": "userA",
+      "session": "browser:userA",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/device/deny",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
+          "Origin": "<APP_ORIGIN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "userCode": "<CLAIMED_USER_A_USER_CODE>"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "success": true
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Claim owner can deny an active claim."
+    },
+    {
+      "category": "protocol",
+      "id": "protocol.issue.public-safe-shape",
+      "actor": "anonymous",
+      "session": "none",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/device/code",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "client_id": "ping-the-human-cli",
+          "scope": "openid profile email"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "body": null,
+        "assertion": "status-only"
+      },
+      "selectionRationale": "Public issuance exposes only the declared device-code shape."
+    },
+    {
+      "category": "protocol",
+      "id": "protocol.journey.approve-owner",
+      "actor": "userA",
+      "session": "browser:userA",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/device",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
+          "Origin": "<APP_ORIGIN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "userCode": "<PENDING_USER_CODE>"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "status": "pending",
+          "user_code": "<PENDING_USER_CODE>"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Representative primary step of the connected approval journey."
+    },
+    {
+      "category": "protocol",
+      "id": "protocol.poll.pending-safe-error",
+      "actor": "anonymous",
+      "session": "none",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/device/token",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+          "device_code": "<PENDING_DEVICE_CODE>",
+          "client_id": "ping-the-human-cli"
+        }
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "authorization_pending"
+        },
+        "assertion": "oauth-error"
+      },
+      "selectionRationale": "Pending polling returns a safe OAuth error."
+    },
+    {
+      "category": "protocol",
+      "id": "protocol.redeem.approved-once",
+      "actor": "anonymous",
+      "session": "none",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/device/token",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+          "device_code": "<APPROVED_DEVICE_CODE>",
+          "client_id": "ping-the-human-cli"
+        }
+      },
+      "expected": {
+        "status": 200,
+        "body": null,
+        "assertion": "status-only"
+      },
+      "selectionRationale": "Approved device code redeems once; this slice covers the primary redemption."
+    },
+    {
+      "category": "tracer",
+      "id": "push.register.foreign-origin",
+      "actor": "userA",
+      "session": "browser:userA",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/push/destination",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
+          "Origin": "https://authorization-suite.invalid",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "endpoint": "https://push.example.test/subscriptions/<SUBSCRIPTION_ID>",
+          "keys": {
+            "auth": "<PUSH_AUTH>",
+            "p256dh": "<PUSH_P256DH>"
+          }
+        }
+      },
+      "expected": {
+        "status": 403,
+        "body": {
+          "code": "INVALID_PUSH_REQUEST"
+        },
+        "assertion": "strict-body"
+      },
+      "selectionRationale": "Push registration rejects a foreign origin."
+    },
+    {
+      "category": "tracer",
+      "id": "push.register.user-a",
+      "actor": "userA",
+      "session": "browser:userA",
+      "request": {
+        "method": "PUT",
+        "path": "/v1/push/destination",
+        "headers": {
+          "Cookie": "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
+          "Origin": "<APP_ORIGIN>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "endpoint": "https://push.example.test/subscriptions/<SUBSCRIPTION_ID>",
+          "keys": {
+            "auth": "<PUSH_AUTH>",
+            "p256dh": "<PUSH_P256DH>"
+          }
+        }
+      },
+      "expected": {
+        "status": 204,
+        "body": null,
+        "assertion": "no-content"
+      },
+      "selectionRationale": "Owner with exact Origin can register push destination."
+    },
+    {
+      "category": "tracer",
+      "id": "session.revoke.cli-bearer-a",
+      "actor": "cliBearerA",
+      "session": "bearer:userA",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/session",
+        "headers": {
+          "Authorization": "Bearer <CLI_BEARER_A>"
+        },
+        "body": null
+      },
+      "expected": {
+        "status": 204,
+        "body": null,
+        "assertion": "no-content"
+      },
+      "selectionRationale": "CLI bearer can revoke its own session."
+    }
+  ]
+}
