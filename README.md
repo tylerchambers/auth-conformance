@@ -1,4 +1,4 @@
-# auth-conformance
+# 🔐 auth-conformance
 
 Authorization bugs rarely live in an endpoint's happy path. They appear when the
 right request is made by the wrong user, against another tenant's resource, or
@@ -12,7 +12,7 @@ against a real service, and checks the policy result. The runner creates fresh
 fixtures per case, applies the actor's credentials, and returns deterministic,
 redacted failure reports.
 
-## What this catches
+## 🛡️ What this catches
 
 - authenticated users reaching another user's or tenant's resources
 - anonymous, stale, or under-privileged sessions receiving the wrong response
@@ -20,7 +20,7 @@ redacted failure reports.
 - new OpenAPI operations picked up by tag or all-operations rules
 - error-envelope and response-body differences that a status-only test misses
 
-## Quick start
+## ⚡ Quick start
 
 You need [Bun](https://bun.sh/) 1.3.14 or a compatible release.
 
@@ -112,7 +112,7 @@ TEST_MEMBER_TOKEN=replace-me \
 bun auth.conformance.ts
 ```
 
-## Core mental model
+## 🧭 Core mental model
 
 Each case is one chain:
 
