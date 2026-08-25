@@ -1,17 +1,51 @@
-# @auth-conformance/core
+# auth-conformance
 
-Declarative API **authorization contract testing** for TypeScript — extracted
-from the Ping the Human project so any HTTP API can use it.
+Authorization bugs rarely live in an endpoint's happy path. They appear when the
+right request is made by the wrong user, against another tenant's resource, or
+with a stale role. Ordinary endpoint tests can prove that `GET /devices` works;
+they often do not prove that every actor gets the correct result for every
+protected operation.
 
-You declare *who* calls *which endpoint* and *what must happen*. The library
-expands those declarations into deterministic, stable-ordered cases, executes
-them against your real (or sandboxed) HTTP service, and reports policy
-mismatches with redacted, human-readable diffs.
+`@auth-conformance/core` turns that authorization matrix into executable
+contracts for TypeScript HTTP APIs. A contract names an actor, builds a request
+against a real service, and checks the policy result. The runner creates fresh
+fixtures per case, applies the actor's credentials, and returns deterministic,
+redacted failure reports.
 
-## Authoring
+## What this catches
 
-Define actors as per-case session factories, then declare one request and one
-expectation per case:
+- authenticated users reaching another user's or tenant's resources
+- anonymous, stale, or under-privileged sessions receiving the wrong response
+- policy drift between similar endpoints or HTTP methods
+- new OpenAPI operations picked up by tag or all-operations rules
+- error-envelope and response-body differences that a status-only test misses
+
+## Quick start
+
+You need [Bun](https://bun.sh/) 1.3.14 or a compatible release.
+
+```bash
+git clone https://github.com/tylerchambers/auth-conformance.git
+cd auth-conformance
+bun install --frozen-lockfile
+bun test packages/conformance/tests/authoring.test.ts
+```
+
+That installs the workspace and runs the public authoring API tests. To verify
+the complete repository, run the commands in [Development](#development).
+
+The package is not documented as publicly published. To try the package artifact
+from this checkout:
+
+```bash
+cd packages/conformance
+bun pm pack --filename ../../auth-conformance-core.tgz
+cd ../..
+# Run this from your API project, using the tarball's absolute path:
+bun add /path/to/auth-conformance/auth-conformance-core.tgz
+```
+
+Then create an authorization contract alongside your API tests:
 
 ```ts
 import {
@@ -20,46 +54,89 @@ import {
   sessions,
 } from "@auth-conformance/core";
 
-const contract = authorizationContract({
-  name: "service-authorization",
-  baseUrl: () => process.env.AUTHORIZATION_BASE_URL!,
-  error: {
-    code: (body) => readErrorCode(body),
+const lifecycle = {
+  async create() {
+    return { memberToken: process.env.TEST_MEMBER_TOKEN! };
   },
-  lifecycle: sandbox.lifecycle,
+  async dispose() {},
+};
+
+const contract = authorizationContract({
+  name: "device-authorization",
+  baseUrl: () => process.env.TEST_API_URL!,
+  lifecycle,
 })
   .actor("anonymous", sessions.anonymous())
-  .actor("member", sessions.bearer(({ fixture }) => fixture.memberToken));
+  .actor(
+    "member",
+    sessions.bearer(({ fixture }) => fixture.memberToken),
+  );
 
 contract
-  .case("members can list their devices")
+  .case("anonymous users cannot list devices")
+  .as("anonymous")
+  .get("/devices")
+  .expectError(401);
+
+contract
+  .case("members can list devices")
   .as("member")
   .get("/devices")
   .expectStatus(200);
 
-const authorizationTests = contract.build();
-await runAuthorizationTests(authorizationTests);
+const report = await runAuthorizationTests(contract.build());
+if (report.outcome !== "passed") {
+  throw new Error(JSON.stringify(report, null, 2));
+}
 ```
 
-Rules can expand across the operation inventory returned by `fromOpenApi`.
-Parameterized OpenAPI paths fail closed until the rule API gains an explicit
-fixture-to-path-parameter model; the runner never requests a literal template
-path. Contracts that only assert error status may omit `error`; supplying an
-error code to `expectError` is type-available only when an envelope reader is
-configured. See [docs/API_REDESIGN.md](docs/API_REDESIGN.md) for the complete
-contract.
+Run that file with your API available:
 
-## Layout
-
+```bash
+TEST_API_URL=http://127.0.0.1:3000 \
+TEST_MEMBER_TOKEN=replace-me \
+bun auth.conformance.ts
 ```
-packages/conformance/   the library (this workspace's only package)
-  src/authoring.ts      four-symbol public API facade
-  src/authoring-*.ts    contract building, expectations, and execution
-  src/openapi-inventory.ts
-                        OpenAPI operation discovery for rules
-  src/model.ts          internal Actor / Operation / AuthorizationCase IR
-  src/runner.ts         internal execution and reporting engine
-  tests/                bun:test suite
+
+## Core mental model
+
+Each case is one chain:
+
+```text
+fresh fixture -> actor session -> one HTTP operation -> one expectation
+```
+
+- **Lifecycle** creates and disposes isolated data for every case.
+- **Actors** describe how a caller authenticates: anonymous, bearer token, API
+  key, cookies, or custom headers.
+- **Cases** target an explicit request. Typed `:pathParams` can resolve from the
+  fixture.
+- **Expectations** check a status, exact or partial body, no-content response,
+  coded error envelope, or custom assertion.
+- **Rules** expand an OpenAPI inventory by operation ID or tag into ordinary,
+  stable-ordered cases.
+
+## Practical next steps
+
+1. Start with anonymous denial and one allowed actor for a protected endpoint.
+2. Add relationship cases: own resource, another user's resource, and another
+   tenant's resource.
+3. Configure `error.code` if policy depends on stable application error codes.
+4. Load a parsed or local JSON OpenAPI document with `fromOpenApi` to cover whole
+   operation groups. Rule expansion currently rejects parameterized OpenAPI
+   paths; write explicit cases for those endpoints.
+5. Fail your test process when the returned report's `outcome` is not `passed`.
+
+The package artifact's focused consumer documentation is in
+[`packages/conformance/README.md`](packages/conformance/README.md).
+
+## Repository layout
+
+```text
+packages/conformance/src/    package implementation
+packages/conformance/tests/  Bun tests for authoring, execution, and reporting
+scripts/package-consumer/    isolated package consumer fixture
+scripts/test-package.ts      pack/install/typecheck/runtime verification
 ```
 
 ## Development
@@ -73,15 +150,6 @@ bun run build
 bun run test:package
 ```
 
-`test:package` packs `@auth-conformance/core`, asserts the tarball allowlist,
-installs it in a temporary project outside the workspace, compiles positive and
-negative consumer type cases against the emitted declarations, and executes the
-compiled consumer with Node.js.
-
-## Core lifecycle
-
-Each case receives a fresh fixture from `lifecycle.create()`. Its actor session
-factory resolves once against that fixture, contributes headers and cookies,
-and the runner issues exactly one HTTP request. The configured expectation then
-evaluates the response before `lifecycle.dispose(fixture)` runs. Cases and
-expanded rules are returned in stable case-ID order.
+`test:package` packs the package, checks the tarball allowlist, installs it in an
+isolated project, compiles positive and negative consumer type cases, and runs
+the compiled consumer with Node.js.
