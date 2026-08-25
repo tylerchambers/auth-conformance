@@ -597,6 +597,35 @@ describe("authoring execution", () => {
       await server.stop(true);
     }
   });
+
+  it("cancels a public run with the caller's abort signal", async () => {
+    let requestCount = 0;
+    const server = Bun.serve({
+      port: 0,
+      fetch() {
+        requestCount += 1;
+        return Response.json({ ok: true });
+      },
+    });
+    const contract = authorizationContract({
+      name: "cancelled-public-runner",
+      baseUrl: () => server.url,
+      lifecycle,
+    }).actor("anonymous", sessions.anonymous());
+    contract.case("request").as("anonymous").get("/request").expectStatus(200);
+
+    try {
+      const report = await runAuthorizationTests(contract.build(), {
+        signal: AbortSignal.abort(new Error("cancelled by caller")),
+      });
+
+      expect(report.outcome).toBe("failed");
+      expect(report.summary.failed).toBe(1);
+      expect(requestCount).toBe(0);
+    } finally {
+      await server.stop(true);
+    }
+  });
 });
 
 function awaitFixture(): Fixture {

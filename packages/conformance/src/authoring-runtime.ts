@@ -80,6 +80,7 @@ type AuthoringExecutionOptions<Fixture> = {
 
 export async function runAuthorizationCases<Fixture>(
   options: AuthoringExecutionOptions<Fixture>,
+  signal?: AbortSignal,
 ): Promise<SuiteReport> {
   const invariants = options.cases.map((authorizationCase) => ({
     id: authorizationCase.id,
@@ -93,8 +94,15 @@ export async function runAuthorizationCases<Fixture>(
       id: options.suiteId,
       invariants,
     }),
+    signal,
   );
 }
+
+/** Configures cancellation for a public authorization test run. */
+export type AuthorizationTestRunOptions = {
+  /** Aborts HTTP requests with a caller-owned signal. */
+  readonly signal?: AbortSignal;
+};
 
 /**
  * Runs a built contract serially against its configured service endpoint.
@@ -103,12 +111,14 @@ export async function runAuthorizationCases<Fixture>(
  * session immediately before its request, and returns failures in the report.
  * Fixture and framework failures abort any remaining cases; transport failures
  * and policy mismatches are reported per case and execution continues. This
- * function does not throw merely because cases fail.
+ * function does not throw merely because cases fail. Pass an `AbortSignal`,
+ * such as `AbortSignal.timeout(...)`, to bound HTTP execution.
  *
  * @throws When passed a value not produced by the contract builder.
  */
 export async function runAuthorizationTests<Fixture>(
   contract: BuiltAuthorizationContract<Fixture>,
+  options: AuthorizationTestRunOptions = {},
 ): Promise<SuiteReport> {
   const metadata = contract[contractMetadata];
   if (metadata === undefined) {
@@ -116,10 +126,13 @@ export async function runAuthorizationTests<Fixture>(
       "runAuthorizationTests expects the result of authorizationContract(...).build()",
     );
   }
-  return runAuthorizationCases({
-    suiteId: metadata.name,
-    cases: contract,
-    lifecycle: metadata.lifecycle,
-    httpClient: new FetchHttpClient(metadata.baseUrl),
-  });
+  return runAuthorizationCases(
+    {
+      suiteId: metadata.name,
+      cases: contract,
+      lifecycle: metadata.lifecycle,
+      httpClient: new FetchHttpClient(metadata.baseUrl),
+    },
+    options.signal,
+  );
 }

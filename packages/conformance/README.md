@@ -60,7 +60,9 @@ contract
   .get("/devices")
   .expectStatus(200);
 
-const report = await runAuthorizationTests(contract.build());
+const report = await runAuthorizationTests(contract.build(), {
+  signal: AbortSignal.timeout(30_000),
+});
 if (report.outcome !== "passed") {
   throw new Error(JSON.stringify(report, null, 2));
 }
@@ -76,7 +78,8 @@ bun auth.conformance.ts
 
 `runAuthorizationTests` returns a report; it does not turn policy mismatches into
 process failures for you. Check `report.outcome` as shown above when running in
-CI.
+CI. Pass an `AbortSignal` to cancel or time out HTTP requests. Fixture lifecycle
+and assertion code must apply their own time bounds.
 
 ## Model real authorization boundaries
 

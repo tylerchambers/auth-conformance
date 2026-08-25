@@ -101,7 +101,9 @@ try {
     .get("/forbidden")
     .expectError(403);
 
-  const report = await runAuthorizationTests(contract.build());
+  const report = await runAuthorizationTests(contract.build(), {
+    signal: AbortSignal.timeout(30_000),
+  });
   if (report.outcome !== "passed" || report.summary.passed !== 3) {
     throw new Error(`Packed consumer failed: ${JSON.stringify(report)}`);
   }

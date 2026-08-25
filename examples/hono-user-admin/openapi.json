@@ -5,7 +5,7 @@
     "version": "1.0.0"
   },
   "servers": [{ "url": "http://127.0.0.1:3000" }],
-  "security": [{ "bearerAuth": [] }],
+  "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
   "paths": {
     "/users/{userId}": {
       "get": {
@@ -66,6 +66,12 @@
         "type": "http",
         "scheme": "bearer",
         "description": "Synthetic example tokens: token-user-1 and token-admin"
+      },
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session",
+        "description": "Synthetic server-side user session"
       }
     },
     "schemas": {
@@ -82,7 +88,7 @@
     },
     "responses": {
       "Unauthorized": {
-        "description": "Missing or invalid bearer token",
+        "description": "Missing or invalid bearer token or session cookie",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/Error" }
