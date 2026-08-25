@@ -19,13 +19,13 @@ curl -H 'Authorization: Bearer token-admin' http://127.0.0.1:3000/admin/audit
 Run its real-loopback authorization contract with:
 
 ```bash
-bun run build
-bun test examples/hono-user-admin/tests/authorization.test.ts
+bun run --cwd examples/hono-user-admin test
 ```
 
 The contract covers anonymous denial, own-user access, hidden cross-user access,
-admin cross-user access, and both denied and allowed admin-endpoint access. A
-cross-user request returns `404` rather than `403` so it does not reveal whether
-the requested user exists.
+admin cross-user access, and both denied and allowed admin-endpoint access. It
+loads [`openapi.json`](openapi.json) with `fromOpenApi` and uses the spec's
+`admin` tag to generate the normal-user denial case. A cross-user request returns
+`404` rather than `403` so it does not reveal whether the requested user exists.
 
-[`openapi.json`](openapi.json) is the checked-in OpenAPI 3.1 contract.
+The OpenAPI 3.1 document is both API documentation and executable test input.

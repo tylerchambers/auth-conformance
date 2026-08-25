@@ -36,13 +36,16 @@ the complete repository, run the commands in [Development](#development).
 
 For a runnable API, see the
 [`examples/hono-user-admin`](examples/hono-user-admin) Hono example. It uses
-synthetic bearer tokens and a real loopback listener:
+synthetic bearer tokens and a real loopback listener. Start the API with:
 
 ```bash
 bun run --cwd examples/hono-user-admin start
-# In another terminal:
-bun run build
-bun test examples/hono-user-admin/tests/authorization.test.ts
+```
+
+Or run its authorization contract, including an OpenAPI tag-based rule:
+
+```bash
+bun run --cwd examples/hono-user-admin test
 ```
 
 The package is not published to npm yet. To try the package artifact from this

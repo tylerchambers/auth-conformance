@@ -38,6 +38,7 @@
       "get": {
         "operationId": "getAdminAudit",
         "summary": "Read the admin-only audit summary",
+        "tags": ["admin"],
         "responses": {
           "200": {
             "description": "The audit summary",

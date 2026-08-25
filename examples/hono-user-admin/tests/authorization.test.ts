@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import {
   authorizationContract,
+  fromOpenApi,
   runAuthorizationTests,
   sessions,
 } from "@auth-conformance/core";
+import openApiDocument from "../openapi.json";
 import { startServer, type UserAdminServer } from "../src/server.ts";
 
 type Fixture = {
@@ -27,6 +29,7 @@ test("the user and admin authorization contract passes", async () => {
   const contract = authorizationContract<Fixture>({
     name: "hono-user-admin",
     baseUrl: () => server.url,
+    operations: fromOpenApi(openApiDocument),
     lifecycle: {
       async create() {
         return {
@@ -82,9 +85,9 @@ test("the user and admin authorization contract passes", async () => {
     .expectBody({ id: "user-2" });
 
   contract
-    .case("users cannot read the admin audit summary")
+    .rule("users cannot access admin operations")
+    .forOperations({ tags: ["admin"] })
     .as("user")
-    .get("/admin/audit")
     .expectError(403);
 
   contract
