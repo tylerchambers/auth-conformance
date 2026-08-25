@@ -1,6 +1,6 @@
 # @auth-conformance/core
 
-Declarative authorization contract testing for TypeScript HTTP APIs.
+Authorization contract testing for any HTTP API, authored in TypeScript.
 
 Use this package when endpoint tests prove that requests work but do not fully
 prove **who may perform them against which resources**. Contracts exercise a
