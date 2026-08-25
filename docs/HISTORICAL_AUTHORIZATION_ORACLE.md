@@ -37,12 +37,15 @@ The slice is balanced rather than exhaustive. Cases were chosen for stable IDs a
 
 All credentials and sensitive resources in the artifact are synthetic placeholders. No historical or production credential is copied.
 
+The artifact keeps provenance, limitations, and each case's selection rationale as documentary review metadata. Tests pin the immutable source commit but do not treat documentary paths or prose as executable behavior. Selected-case totals, category counts, declaration order, and observed request counts are derived from the cases and execution instead of being duplicated as fixture assertions.
+
 ## What the tests prove
 
 The deterministic suite proves that:
 
 - all 30 explicit IDs and their lexicographic execution order match the golden artifact;
-- each declaration maps the recorded actor to the recorded endpoint and expected result;
+- each declaration maps the recorded actor and session label to the recorded endpoint and expected result;
+- actor session factories are the sole source of cookies and bearer credentials; operation declarations contain only request-specific non-authentication headers;
 - the runner produces the exact recorded primary request method, path, body, and synthetic authentication headers/cookies;
 - each case creates one fresh fixture, acquires one fresh asynchronous session, sends exactly one primary HTTP request, and disposes that fixture once;
 - recorded responses satisfy one of four explicit oracle modes: strict status/body equality, OAuth status/code with an optional description, status-only, or no-content; and

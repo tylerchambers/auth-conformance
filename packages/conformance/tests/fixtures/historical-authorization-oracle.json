@@ -17,12 +17,6 @@
   },
   "selection": {
     "method": "Balanced representative slice across tracer, admin, and protocol behavior; prioritize stable IDs, actor/session boundaries, exact transport shapes, precedence rules, and security-sensitive outcomes.",
-    "selectedCaseCount": 30,
-    "categoryCounts": {
-      "tracer": 10,
-      "admin": 10,
-      "protocol": 10
-    },
     "limitations": [
       "Primary request behavior only; historical postcondition observation requests and connected-journey follow-ups are out of scope.",
       "Success cases that historically used richer custom evaluators preserve the status and documented shape, not byte-for-byte response equivalence.",
@@ -48,9 +42,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Anonymous authentication boundary.",
-      "order": 1
+      "selectionRationale": "Anonymous authentication boundary."
     },
     {
       "category": "tracer",
@@ -70,9 +62,7 @@
         "body": null,
         "assertion": "status-only"
       },
-      "requestCount": 1,
-      "selectionRationale": "CLI bearer maps to User A.",
-      "order": 2
+      "selectionRationale": "CLI bearer maps to User A."
     },
     {
       "category": "tracer",
@@ -94,9 +84,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Revoked entitlement remains denied.",
-      "order": 3
+      "selectionRationale": "Revoked entitlement remains denied."
     },
     {
       "category": "admin",
@@ -118,9 +106,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Admin mutation fails closed without Origin.",
-      "order": 4
+      "selectionRationale": "Admin mutation fails closed without Origin."
     },
     {
       "category": "admin",
@@ -143,9 +129,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Non-administrator cannot grant beta access.",
-      "order": 5
+      "selectionRationale": "Non-administrator cannot grant beta access."
     },
     {
       "category": "admin",
@@ -168,9 +152,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Missing entitlement has a stable not-found outcome.",
-      "order": 6
+      "selectionRationale": "Missing entitlement has a stable not-found outcome."
     },
     {
       "category": "admin",
@@ -194,9 +176,7 @@
         "body": null,
         "assertion": "status-only"
       },
-      "requestCount": 1,
-      "selectionRationale": "Administrator capability is independent of beta entitlement.",
-      "order": 7
+      "selectionRationale": "Administrator capability is independent of beta entitlement."
     },
     {
       "category": "admin",
@@ -222,9 +202,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Origin validation precedes malformed input.",
-      "order": 8
+      "selectionRationale": "Origin validation precedes malformed input."
     },
     {
       "category": "admin",
@@ -248,9 +226,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Authentication precedes origin and input validation.",
-      "order": 9
+      "selectionRationale": "Authentication precedes origin and input validation."
     },
     {
       "category": "admin",
@@ -273,9 +249,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Nonexistent invitation is stable not-found.",
-      "order": 10
+      "selectionRationale": "Nonexistent invitation is stable not-found."
     },
     {
       "category": "admin",
@@ -295,9 +269,7 @@
         "body": null,
         "assertion": "status-only"
       },
-      "requestCount": 1,
-      "selectionRationale": "Administrator identity does not require beta access.",
-      "order": 11
+      "selectionRationale": "Administrator identity does not require beta access."
     },
     {
       "category": "admin",
@@ -317,9 +289,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Admin identity endpoint authenticates.",
-      "order": 12
+      "selectionRationale": "Admin identity endpoint authenticates."
     },
     {
       "category": "admin",
@@ -341,9 +311,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Authenticated non-admin remains denied.",
-      "order": 13
+      "selectionRationale": "Authenticated non-admin remains denied."
     },
     {
       "category": "tracer",
@@ -367,9 +335,7 @@
         "body": null,
         "assertion": "status-only"
       },
-      "requestCount": 1,
-      "selectionRationale": "Owner can mutate own device.",
-      "order": 14
+      "selectionRationale": "Owner can mutate own device."
     },
     {
       "category": "tracer",
@@ -392,9 +358,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Foreign ownership is concealed as not-found.",
-      "order": 15
+      "selectionRationale": "Foreign ownership is concealed as not-found."
     },
     {
       "category": "tracer",
@@ -420,9 +384,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Browser sessions are rejected at bearer-only ping endpoint.",
-      "order": 16
+      "selectionRationale": "Browser sessions are rejected at bearer-only ping endpoint."
     },
     {
       "category": "tracer",
@@ -446,9 +408,7 @@
         "body": null,
         "assertion": "status-only"
       },
-      "requestCount": 1,
-      "selectionRationale": "CLI bearer is accepted by bearer-only ping endpoint.",
-      "order": 17
+      "selectionRationale": "CLI bearer is accepted by bearer-only ping endpoint."
     },
     {
       "category": "protocol",
@@ -475,9 +435,7 @@
         },
         "assertion": "oauth-error"
       },
-      "requestCount": 1,
-      "selectionRationale": "A foreign browser session cannot approve another owner's claim.",
-      "order": 18
+      "selectionRationale": "A foreign browser session cannot approve another owner's claim."
     },
     {
       "category": "protocol",
@@ -502,9 +460,7 @@
         },
         "assertion": "oauth-error"
       },
-      "requestCount": 1,
-      "selectionRationale": "Claim requires a browser session.",
-      "order": 19
+      "selectionRationale": "Claim requires a browser session."
     },
     {
       "category": "protocol",
@@ -531,9 +487,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Exact origin and owner session permit claim.",
-      "order": 20
+      "selectionRationale": "Exact origin and owner session permit claim."
     },
     {
       "category": "protocol",
@@ -558,9 +512,7 @@
         },
         "assertion": "oauth-error"
       },
-      "requestCount": 1,
-      "selectionRationale": "Claim fails closed without Origin.",
-      "order": 21
+      "selectionRationale": "Claim fails closed without Origin."
     },
     {
       "category": "protocol",
@@ -586,9 +538,7 @@
         },
         "assertion": "oauth-error"
       },
-      "requestCount": 1,
-      "selectionRationale": "Revoked beta access denies protocol claim.",
-      "order": 22
+      "selectionRationale": "Revoked beta access denies protocol claim."
     },
     {
       "category": "protocol",
@@ -614,9 +564,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Claim owner can deny an active claim.",
-      "order": 23
+      "selectionRationale": "Claim owner can deny an active claim."
     },
     {
       "category": "protocol",
@@ -639,9 +587,7 @@
         "body": null,
         "assertion": "status-only"
       },
-      "requestCount": 1,
-      "selectionRationale": "Public issuance exposes only the declared device-code shape.",
-      "order": 24
+      "selectionRationale": "Public issuance exposes only the declared device-code shape."
     },
     {
       "category": "protocol",
@@ -668,9 +614,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Representative primary step of the connected approval journey.",
-      "order": 25
+      "selectionRationale": "Representative primary step of the connected approval journey."
     },
     {
       "category": "protocol",
@@ -696,9 +640,7 @@
         },
         "assertion": "oauth-error"
       },
-      "requestCount": 1,
-      "selectionRationale": "Pending polling returns a safe OAuth error.",
-      "order": 26
+      "selectionRationale": "Pending polling returns a safe OAuth error."
     },
     {
       "category": "protocol",
@@ -722,9 +664,7 @@
         "body": null,
         "assertion": "status-only"
       },
-      "requestCount": 1,
-      "selectionRationale": "Approved device code redeems once; this slice covers the primary redemption.",
-      "order": 27
+      "selectionRationale": "Approved device code redeems once; this slice covers the primary redemption."
     },
     {
       "category": "tracer",
@@ -754,9 +694,7 @@
         },
         "assertion": "strict-body"
       },
-      "requestCount": 1,
-      "selectionRationale": "Push registration rejects a foreign origin.",
-      "order": 28
+      "selectionRationale": "Push registration rejects a foreign origin."
     },
     {
       "category": "tracer",
@@ -784,9 +722,7 @@
         "body": null,
         "assertion": "no-content"
       },
-      "requestCount": 1,
-      "selectionRationale": "Owner with exact Origin can register push destination.",
-      "order": 29
+      "selectionRationale": "Owner with exact Origin can register push destination."
     },
     {
       "category": "tracer",
@@ -806,9 +742,7 @@
         "body": null,
         "assertion": "no-content"
       },
-      "requestCount": 1,
-      "selectionRationale": "CLI bearer can revoke its own session.",
-      "order": 30
+      "selectionRationale": "CLI bearer can revoke its own session."
     }
   ]
 }

@@ -8,6 +8,7 @@ import oracle from "./fixtures/historical-authorization-oracle.json" with {
 import {
   buildHistoricalOracleContract,
   createHistoricalOracleLifecycle,
+  historicalOracleActors,
 } from "./support/historical-oracle-contract.ts";
 
 class OracleHttpClient implements HttpClient {
@@ -61,12 +62,22 @@ describe("historical authorization behavioral oracle parity", () => {
     expect(oracle.provenance.commit).toBe(
       "a87cf00af3ab2792ae5eb7382aaae3326ad524b0",
     );
-    expect(oracle.selection.selectedCaseCount).toBe(30);
-    expect(oracle.selection.categoryCounts).toEqual({
-      tracer: 10,
-      admin: 10,
-      protocol: 10,
-    });
+    expect(oracle.cases).toHaveLength(30);
+    expect(
+      oracle.cases.reduce<Record<string, number>>((counts, oracleCase) => {
+        counts[oracleCase.category] = (counts[oracleCase.category] ?? 0) + 1;
+        return counts;
+      }, {}),
+    ).toEqual({ tracer: 10, admin: 10, protocol: 10 });
+    const actorSessions = new Map(
+      Object.entries(historicalOracleActors).map(([actor, { session }]) => [
+        actor,
+        session,
+      ]),
+    );
+    for (const { actor, session } of oracle.cases) {
+      expect(actorSessions.get(actor) === session).toBe(true);
+    }
     expect(contract.map(({ id }) => id)).toEqual(
       oracle.cases.map(({ id }) => id),
     );
@@ -75,9 +86,6 @@ describe("historical authorization behavioral oracle parity", () => {
     );
     expect(contract.map(({ id }) => id)).toEqual(
       [...contract.map(({ id }) => id)].sort(),
-    );
-    expect(oracle.cases.map(({ order }) => order)).toEqual(
-      Array.from({ length: 30 }, (_, index) => index + 1),
     );
   });
 
@@ -220,6 +228,26 @@ describe("historical authorization behavioral oracle parity", () => {
     }
   });
 
+  it("keeps credentials exclusively in actor sessions", () => {
+    const contract = buildHistoricalOracleContract();
+
+    for (const [index, authorizationCase] of contract.entries()) {
+      const request = authorizationCase.operation.buildRequest({
+        instance: index + 1,
+      });
+      const authenticationHeaders = Object.keys(request.headers ?? {}).filter(
+        (header) => {
+          const normalizedHeader = header.toLowerCase();
+          return (
+            normalizedHeader === "authorization" ||
+            normalizedHeader === "cookie"
+          );
+        },
+      );
+      expect(authenticationHeaders).toEqual([]);
+    }
+  });
+
   it("executes exact requests and outcomes with one fresh fixture and session per case", async () => {
     const events: string[] = [];
     const lifecycle = createHistoricalOracleLifecycle(events);
@@ -240,16 +268,13 @@ describe("historical authorization behavioral oracle parity", () => {
       failed: 0,
       skipped: 0,
     });
-    expect(client.requests).toHaveLength(30);
-    expect(oracle.cases.every(({ requestCount }) => requestCount === 1)).toBe(
-      true,
-    );
+    expect(client.requests).toHaveLength(oracle.cases.length);
     expect(events).toEqual(
-      oracle.cases.flatMap(({ actor }, index) => {
+      oracle.cases.flatMap(({ actor, session }, index) => {
         const instance = index + 1;
         return [
           `create:${instance}`,
-          `session:${instance}:${actor}`,
+          `session:${instance}:${actor}:${session}`,
           `request:${instance}`,
           `dispose:${instance}`,
         ];

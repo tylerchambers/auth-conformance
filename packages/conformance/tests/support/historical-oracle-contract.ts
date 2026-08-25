@@ -36,15 +36,64 @@ export function createHistoricalOracleLifecycle(
   };
 }
 
-function recordedSession(
-  actor: string,
-  factory: OracleSessionFactory,
+type HistoricalOracleActorDefinition = {
+  readonly session: string;
+  readonly factory: OracleSessionFactory;
+};
+
+export const historicalOracleActors = {
+  anonymous: {
+    session: "none",
+    factory: sessions.anonymous<HistoricalOracleFixture>(),
+  },
+  userA: {
+    session: "browser:userA",
+    factory: sessions.fromHeaders<HistoricalOracleFixture>(() => ({
+      Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
+    })),
+  },
+  userB: {
+    session: "browser:userB",
+    factory: sessions.fromHeaders<HistoricalOracleFixture>(() => ({
+      Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERB>",
+    })),
+  },
+  revokedUser: {
+    session: "browser:revokedUser",
+    factory: sessions.fromHeaders<HistoricalOracleFixture>(() => ({
+      Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_REVOKEDUSER>",
+    })),
+  },
+  nonAdmin: {
+    session: "browser:nonAdmin",
+    factory: sessions.fromHeaders<HistoricalOracleFixture>(() => ({
+      Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_NONADMIN>",
+    })),
+  },
+  adminWithoutBeta: {
+    session: "browser:adminWithoutBeta",
+    factory: sessions.fromHeaders<HistoricalOracleFixture>(() => ({
+      Cookie:
+        "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
+    })),
+  },
+  cliBearerA: {
+    session: "bearer:userA",
+    factory: sessions.bearer<HistoricalOracleFixture>("<CLI_BEARER_A>"),
+  },
+} as const satisfies Readonly<Record<string, HistoricalOracleActorDefinition>>;
+
+type HistoricalOracleActorName = keyof typeof historicalOracleActors;
+
+function sessionFor(
+  actorName: HistoricalOracleActorName,
 ): OracleSessionFactory {
+  const actor = historicalOracleActors[actorName];
   return async (context) => {
     context.fixture.events?.push(
-      `session:${context.fixture.instance}:${actor}`,
+      `session:${context.fixture.instance}:${actorName}:${actor.session}`,
     );
-    return factory(context);
+    return actor.factory(context);
   };
 }
 
@@ -90,68 +139,13 @@ export function buildHistoricalOracleContract(
     error: { code: readErrorCode },
     lifecycle,
   })
-    .actor(
-      "anonymous",
-      recordedSession(
-        "anonymous",
-        sessions.anonymous<HistoricalOracleFixture>(),
-      ),
-    )
-    .actor(
-      "userA",
-      recordedSession(
-        "userA",
-        sessions.fromHeaders<HistoricalOracleFixture>(() => ({
-          Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
-        })),
-      ),
-    )
-    .actor(
-      "userB",
-      recordedSession(
-        "userB",
-        sessions.fromHeaders<HistoricalOracleFixture>(() => ({
-          Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERB>",
-        })),
-      ),
-    )
-    .actor(
-      "revokedUser",
-      recordedSession(
-        "revokedUser",
-        sessions.fromHeaders<HistoricalOracleFixture>(() => ({
-          Cookie:
-            "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_REVOKEDUSER>",
-        })),
-      ),
-    )
-    .actor(
-      "nonAdmin",
-      recordedSession(
-        "nonAdmin",
-        sessions.fromHeaders<HistoricalOracleFixture>(() => ({
-          Cookie:
-            "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_NONADMIN>",
-        })),
-      ),
-    )
-    .actor(
-      "adminWithoutBeta",
-      recordedSession(
-        "adminWithoutBeta",
-        sessions.fromHeaders<HistoricalOracleFixture>(() => ({
-          Cookie:
-            "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
-        })),
-      ),
-    )
-    .actor(
-      "cliBearerA",
-      recordedSession(
-        "cliBearerA",
-        sessions.bearer<HistoricalOracleFixture>("<CLI_BEARER_A>"),
-      ),
-    );
+    .actor("anonymous", sessionFor("anonymous"))
+    .actor("userA", sessionFor("userA"))
+    .actor("userB", sessionFor("userB"))
+    .actor("revokedUser", sessionFor("revokedUser"))
+    .actor("nonAdmin", sessionFor("nonAdmin"))
+    .actor("adminWithoutBeta", sessionFor("adminWithoutBeta"))
+    .actor("cliBearerA", sessionFor("cliBearerA"));
   contract
     .case("account me anonymous")
     .id("account.me.anonymous")
@@ -162,29 +156,19 @@ export function buildHistoricalOracleContract(
     .case("account me cli bearer a")
     .id("account.me.cli-bearer-a")
     .as("cliBearerA")
-    .get("/v1/me", { headers: { Authorization: "Bearer <CLI_BEARER_A>" } })
+    .get("/v1/me")
     .expectStatus(200);
   contract
     .case("account me revoked user")
     .id("account.me.revoked-user")
     .as("revokedUser")
-    .get("/v1/me", {
-      headers: {
-        Cookie:
-          "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_REVOKEDUSER>",
-      },
-    })
+    .get("/v1/me")
     .expectThat(strictResponse(403, { code: "BETA_ACCESS_REQUIRED" }));
   contract
     .case("admin beta grant missing origin")
     .id("admin.beta.grant.missing-origin")
     .as("adminWithoutBeta")
-    .put("/v1/admin/users/<NONEXISTENT_USER_ID>/beta-access", {
-      headers: {
-        Cookie:
-          "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
-      },
-    })
+    .put("/v1/admin/users/<NONEXISTENT_USER_ID>/beta-access")
     .expectThat(strictResponse(403, { code: "INVALID_ADMIN_REQUEST" }));
   contract
     .case("admin beta grant non admin")
@@ -192,7 +176,6 @@ export function buildHistoricalOracleContract(
     .as("nonAdmin")
     .put("/v1/admin/users/<USER_WITHOUT_BETA_ID>/beta-access", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_NONADMIN>",
         Origin: "<APP_ORIGIN>",
       },
     })
@@ -203,8 +186,6 @@ export function buildHistoricalOracleContract(
     .as("adminWithoutBeta")
     .delete("/v1/admin/users/<USER_WITHOUT_BETA_ID>/beta-access", {
       headers: {
-        Cookie:
-          "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
         Origin: "<APP_ORIGIN>",
       },
     })
@@ -215,8 +196,6 @@ export function buildHistoricalOracleContract(
     .as("adminWithoutBeta")
     .post("/v1/admin/invitations", {
       headers: {
-        Cookie:
-          "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
         Origin: "<APP_ORIGIN>",
         "Content-Type": "application/json",
       },
@@ -229,8 +208,6 @@ export function buildHistoricalOracleContract(
     .as("adminWithoutBeta")
     .post("/v1/admin/invitations", {
       headers: {
-        Cookie:
-          "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
         Origin: "https://authorization-suite.invalid",
         "Content-Type": "application/json",
       },
@@ -252,8 +229,6 @@ export function buildHistoricalOracleContract(
     .as("adminWithoutBeta")
     .delete("/v1/admin/invitations/<NONEXISTENT_INVITATION_ID>", {
       headers: {
-        Cookie:
-          "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
         Origin: "<APP_ORIGIN>",
       },
     })
@@ -262,12 +237,7 @@ export function buildHistoricalOracleContract(
     .case("admin me admin without beta")
     .id("admin.me.admin-without-beta")
     .as("adminWithoutBeta")
-    .get("/v1/admin/me", {
-      headers: {
-        Cookie:
-          "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_ADMINWITHOUTBETA>",
-      },
-    })
+    .get("/v1/admin/me")
     .expectStatus(200);
   contract
     .case("admin me anonymous")
@@ -279,11 +249,7 @@ export function buildHistoricalOracleContract(
     .case("admin me non admin")
     .id("admin.me.non-admin")
     .as("nonAdmin")
-    .get("/v1/admin/me", {
-      headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_NONADMIN>",
-      },
-    })
+    .get("/v1/admin/me")
     .expectThat(strictResponse(403, { code: "ADMIN_ACCESS_REQUIRED" }));
   contract
     .case("devices rename user a owner")
@@ -291,7 +257,6 @@ export function buildHistoricalOracleContract(
     .as("userA")
     .patch("/v1/devices/<USER_A_DEVICE_ID>", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
         Origin: "<APP_ORIGIN>",
         "Content-Type": "application/json",
       },
@@ -304,7 +269,6 @@ export function buildHistoricalOracleContract(
     .as("userA")
     .delete("/v1/devices/<USER_B_DEVICE_ID>", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
         Origin: "<APP_ORIGIN>",
       },
     })
@@ -315,7 +279,6 @@ export function buildHistoricalOracleContract(
     .as("userA")
     .post("/v1/pings", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
         "Content-Type": "application/json",
         "Idempotency-Key": "authorization_suite_ping_123456",
       },
@@ -328,7 +291,6 @@ export function buildHistoricalOracleContract(
     .as("cliBearerA")
     .post("/v1/pings", {
       headers: {
-        Authorization: "Bearer <CLI_BEARER_A>",
         "Content-Type": "application/json",
         "Idempotency-Key": "authorization_suite_ping_123456",
       },
@@ -341,7 +303,6 @@ export function buildHistoricalOracleContract(
     .as("userB")
     .post("/api/auth/device/approve", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERB>",
         Origin: "<APP_ORIGIN>",
         "Content-Type": "application/json",
       },
@@ -363,7 +324,6 @@ export function buildHistoricalOracleContract(
     .as("userA")
     .post("/api/auth/device", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
         Origin: "<APP_ORIGIN>",
         "Content-Type": "application/json",
       },
@@ -381,7 +341,6 @@ export function buildHistoricalOracleContract(
     .as("userA")
     .post("/api/auth/device", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
         "Content-Type": "application/json",
       },
       body: { userCode: "<PENDING_USER_CODE>" },
@@ -393,8 +352,6 @@ export function buildHistoricalOracleContract(
     .as("revokedUser")
     .post("/api/auth/device", {
       headers: {
-        Cookie:
-          "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_REVOKEDUSER>",
         Origin: "<APP_ORIGIN>",
         "Content-Type": "application/json",
       },
@@ -407,7 +364,6 @@ export function buildHistoricalOracleContract(
     .as("userA")
     .post("/api/auth/device/deny", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
         Origin: "<APP_ORIGIN>",
         "Content-Type": "application/json",
       },
@@ -429,7 +385,6 @@ export function buildHistoricalOracleContract(
     .as("userA")
     .post("/api/auth/device", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
         Origin: "<APP_ORIGIN>",
         "Content-Type": "application/json",
       },
@@ -473,7 +428,6 @@ export function buildHistoricalOracleContract(
     .as("userA")
     .put("/v1/push/destination", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
         Origin: "https://authorization-suite.invalid",
         "Content-Type": "application/json",
       },
@@ -489,7 +443,6 @@ export function buildHistoricalOracleContract(
     .as("userA")
     .put("/v1/push/destination", {
       headers: {
-        Cookie: "ping-the-human.session_token=<SIGNED_SESSION_TOKEN_USERA>",
         Origin: "<APP_ORIGIN>",
         "Content-Type": "application/json",
       },
@@ -503,9 +456,7 @@ export function buildHistoricalOracleContract(
     .case("session revoke cli bearer a")
     .id("session.revoke.cli-bearer-a")
     .as("cliBearerA")
-    .delete("/v1/session", {
-      headers: { Authorization: "Bearer <CLI_BEARER_A>" },
-    })
+    .delete("/v1/session")
     .expectNoContent();
   return contract.build();
 }
