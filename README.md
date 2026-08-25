@@ -34,6 +34,17 @@ bun test packages/conformance/tests/authoring.test.ts
 That installs the workspace and runs the public authoring API tests. To verify
 the complete repository, run the commands in [Development](#development).
 
+For a runnable API, see the
+[`examples/hono-user-admin`](examples/hono-user-admin) Hono example. It uses
+synthetic bearer tokens and a real loopback listener:
+
+```bash
+bun run --cwd examples/hono-user-admin start
+# In another terminal:
+bun run build
+bun test examples/hono-user-admin/tests/authorization.test.ts
+```
+
 The package is not published to npm yet. To try the package artifact from this
 checkout:
 
@@ -135,6 +146,7 @@ The package artifact's focused consumer documentation is in
 ```text
 packages/conformance/src/    package implementation
 packages/conformance/tests/  Bun tests for authoring, execution, and reporting
+examples/hono-user-admin/    runnable Hono user/admin authorization example
 scripts/package-consumer/    isolated package consumer fixture
 scripts/test-package.ts      pack/install/typecheck/runtime verification
 ```
@@ -145,7 +157,7 @@ scripts/test-package.ts      pack/install/typecheck/runtime verification
 bun install --frozen-lockfile
 bun run format:check
 bun run typecheck
-bun test packages
+bun run test
 bun run build
 bun run test:package
 ```

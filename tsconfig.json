@@ -21,6 +21,8 @@
   "include": [
     "packages/*/src/**/*.ts",
     "packages/*/tests/**/*.ts",
+    "examples/*/src/**/*.ts",
+    "examples/*/tests/**/*.ts",
     "scripts/**/*.ts"
   ],
   "exclude": ["scripts/package-consumer"]

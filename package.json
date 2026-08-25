@@ -10,7 +10,7 @@
   "scripts": {
     "build": "bun run --cwd packages/conformance build",
     "format:check": "biome check .",
-    "test": "bun test packages",
+    "test": "bun run build && bun test packages examples",
     "test:package": "bun scripts/test-package.ts",
     "typecheck": "tsc --noEmit --pretty false"
   },
