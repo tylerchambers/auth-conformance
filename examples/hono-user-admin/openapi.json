@@ -32,6 +32,48 @@
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
+      },
+      "patch": {
+        "operationId": "updateUser",
+        "summary": "Update a user resource",
+        "description": "Users may update themselves. Admins may update any user.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["displayName"],
+                "properties": { "displayName": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated user",
+            "headers": {
+              "X-Resource-State": {
+                "schema": { "type": "string", "const": "updated" }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "400": {
+            "description": "The display name is invalid",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
       }
     },
     "/admin/audit": {
@@ -65,7 +107,7 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Synthetic example tokens: token-user-1 and token-admin"
+        "description": "Synthetic bearer tokens returned by the test fixture endpoint"
       },
       "cookieAuth": {
         "type": "apiKey",
@@ -78,7 +120,10 @@
       "User": {
         "type": "object",
         "required": ["id"],
-        "properties": { "id": { "type": "string" } }
+        "properties": {
+          "id": { "type": "string" },
+          "displayName": { "type": "string" }
+        }
       },
       "Error": {
         "type": "object",

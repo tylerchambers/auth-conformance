@@ -1,7 +1,23 @@
 {
-  "name": "@auth-conformance/core",
-  "version": "0.1.0",
+  "name": "auth-conformance",
+  "version": "0.1.1",
   "description": "Authorization contract testing for any HTTP API, authored in TypeScript",
+  "keywords": [
+    "authorization",
+    "contract-testing",
+    "api-testing",
+    "openapi",
+    "security-testing"
+  ],
+  "homepage": "https://github.com/tylerchambers/auth-conformance#readme",
+  "bugs": {
+    "url": "https://github.com/tylerchambers/auth-conformance/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tylerchambers/auth-conformance.git",
+    "directory": "packages/conformance"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -17,6 +33,9 @@
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },

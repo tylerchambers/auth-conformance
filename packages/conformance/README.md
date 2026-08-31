@@ -1,4 +1,4 @@
-# @auth-conformance/core
+# auth-conformance
 
 Authorization contract testing for any HTTP API, authored in TypeScript.
 
@@ -9,11 +9,11 @@ redacted reports for policy mismatches.
 
 ## Install
 
-The package is not published to npm yet. Install a package artifact supplied by
-your project or pack this checkout:
+Install [`auth-conformance`](https://www.npmjs.com/package/auth-conformance)
+from npm:
 
 ```bash
-bun add /absolute/path/to/auth-conformance-core.tgz
+bun add auth-conformance
 ```
 
 The package is ESM-only, supports Node.js 20 or newer and Bun, and does not
@@ -28,7 +28,7 @@ import {
   authorizationContract,
   runAuthorizationTests,
   sessions,
-} from "@auth-conformance/core";
+} from "auth-conformance";
 
 const lifecycle = {
   async create() {
@@ -58,7 +58,11 @@ contract
   .case("members can list devices")
   .as("member")
   .get("/devices")
-  .expectStatus(200);
+  .expectResponse({
+    status: 200,
+    headers: { "content-type": "application/json" },
+    body: [{ id: "device-1" }],
+  });
 
 const report = await runAuthorizationTests(contract.build(), {
   signal: AbortSignal.timeout(30_000),
@@ -115,12 +119,17 @@ contract
   .get("/devices/:deviceId", {
     params: { deviceId: ({ fixture }) => fixture.deviceId },
   })
-  .expectStatus(200);
+  .expectResponse(({ fixture }) => ({
+    status: 200,
+    body: { id: fixture.deviceId },
+  }));
 ```
 
 Path parameters are required by the type surface and are URL-encoded. Request
-builders also support headers and JSON-compatible bodies. For unusual methods
-or request construction, use `.request(method, ({ fixture }) => request)`.
+builders also support headers and JSON-compatible bodies. For fixture-derived
+bodies, query strings, or unusual methods, use
+`.request(method, ({ fixture }) => request)`. Response expectations may likewise
+be fixture-derived.
 
 ## Actors and expectations
 
@@ -135,6 +144,7 @@ or request construction, use `.request(method, ({ fixture }) => request)`.
 A case ends with exactly one expectation:
 
 - `expectStatus(status)`
+- `expectResponse(valueOrFactory)` to check status with optional headers and body
 - `expectError(status)`
 - `expectError(status, code)` when `error.code` is configured
 - `expectBody(value)` or `expectBodyContaining(subset)`
@@ -164,7 +174,7 @@ import {
   authorizationContract,
   fromOpenApi,
   sessions,
-} from "@auth-conformance/core";
+} from "auth-conformance";
 
 const operations = fromOpenApi(new URL("./openapi.json", import.meta.url));
 const contract = authorizationContract({

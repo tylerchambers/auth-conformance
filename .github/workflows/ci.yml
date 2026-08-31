@@ -28,8 +28,8 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Run package unit tests
-        run: bun test packages
+      - name: Build and run all tests
+        run: bun run test
 
       - name: Pack and test isolated consumer
         run: bun run test:package

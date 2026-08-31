@@ -5,6 +5,8 @@ import {
   type ErrorEnvelope,
   errorExpectation,
   noContentExpectation,
+  type ResponseExpectationInput,
+  responseExpectation,
   strictBodyExpectation,
 } from "./authoring-expectations.ts";
 import {
@@ -158,6 +160,8 @@ type ErrorExpectationTerminal<Result, HasErrorEnvelope extends boolean> = {
 type ExpectationTerminals<Fixture, Result, HasErrorEnvelope extends boolean> = {
   /** Completes the declaration with an expected HTTP status. */
   expectStatus(status: number): Result;
+  /** Completes the declaration with a combined fixture-aware response check. */
+  expectResponse(expectation: ResponseExpectationInput<Fixture>): Result;
   /** Completes the declaration with an exact deep body comparison. */
   expectBody(value: unknown): Result;
   /** Completes the declaration with a recursive subset body comparison. */
@@ -653,6 +657,9 @@ function expectationTerminals<
   return {
     expectStatus(status) {
       return finish(ExpectedResponse.status(status));
+    },
+    expectResponse(expectation) {
+      return finish(responseExpectation(expectation));
     },
     expectBody(value) {
       return finish(strictBodyExpectation(value));

@@ -11,7 +11,9 @@ bun install --frozen-lockfile
 bun run --cwd examples/hono-user-admin test
 ```
 
-The runnable [Hono user/admin example](examples/hono-user-admin) starts a real loopback server and checks nine bearer- and cookie-auth cases.
+The runnable [Hono user/admin example](examples/hono-user-admin) provisions and
+cleans up isolated fixtures over HTTP, then checks ten bearer- and cookie-auth
+cases against a real loopback server.
 
 ## 🧪 Define a contract
 
@@ -21,7 +23,7 @@ import {
   fromOpenApi,
   runAuthorizationTests,
   sessions,
-} from "@auth-conformance/core";
+} from "auth-conformance";
 import openApi from "./openapi.json";
 
 type Fixture = {
@@ -56,7 +58,10 @@ contract
   .get("/users/:userId", {
     params: { userId: ({ fixture }) => fixture.ownUserId },
   })
-  .expectBody({ id: "user-1" });
+  .expectResponse(({ fixture }) => ({
+    status: 200,
+    body: { id: fixture.ownUserId },
+  }));
 
 contract
   .case("users cannot discover other users")
@@ -82,15 +87,13 @@ if (report.outcome !== "passed") {
 
 See [`examples/hono-user-admin`](examples/hono-user-admin) for the API, OpenAPI document, and complete contract.
 
-## 📦 Package locally
+## 📦 Install
 
-The package is not published to npm yet.
+[`auth-conformance`](https://www.npmjs.com/package/auth-conformance) is
+published on npm:
 
 ```bash
-cd packages/conformance
-bun pm pack --filename ../../auth-conformance-core.tgz
-cd ../..
-bun add /absolute/path/to/auth-conformance-core.tgz
+bun add auth-conformance
 ```
 
 ## Development
@@ -103,3 +106,19 @@ bun run test
 bun run build
 bun run test:package
 ```
+
+## Publishing
+
+`auth-conformance` is the only canonical package name. Configure its npm trusted
+publisher with:
+
+- GitHub owner: `tylerchambers`
+- Repository: `auth-conformance`
+- Workflow: `publish.yml`
+- Environment: leave blank
+
+For each release, update `packages/conformance/package.json`, merge only after
+CI passes, and publish a GitHub release tagged with the matching `v<version>`
+value. The publish workflow repeats every release gate and uses npm trusted
+publishing with provenance.
+

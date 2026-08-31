@@ -1,5 +1,5 @@
 {
-  "name": "auth-conformance",
+  "name": "auth-conformance-workspace",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.14",

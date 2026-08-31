@@ -4,18 +4,77 @@ import {
   fromOpenApi,
   runAuthorizationTests,
   sessions,
-} from "@auth-conformance/core";
+} from "auth-conformance";
 import openApiDocument from "../openapi.json";
 import { startServer, type UserAdminServer } from "../src/server.ts";
 
 type Fixture = {
   readonly adminToken: string;
+  readonly fixtureId: string;
   readonly invalidSessionId: string;
   readonly otherUserId: string;
   readonly ownUserId: string;
   readonly sessionId: string;
+  readonly updatedDisplayName: string;
   readonly userToken: string;
 };
+
+async function provisionFixture(baseUrl: string): Promise<Fixture> {
+  const response = await fetch(`${baseUrl}/test/fixtures`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userCount: 2 }),
+  });
+  const body: unknown = await response.json();
+  if (
+    response.status !== 201 ||
+    body === null ||
+    typeof body !== "object" ||
+    !("adminToken" in body) ||
+    typeof body.adminToken !== "string" ||
+    !("fixtureId" in body) ||
+    typeof body.fixtureId !== "string" ||
+    !("invalidSessionId" in body) ||
+    typeof body.invalidSessionId !== "string" ||
+    !("otherUserId" in body) ||
+    typeof body.otherUserId !== "string" ||
+    !("ownUserId" in body) ||
+    typeof body.ownUserId !== "string" ||
+    !("sessionId" in body) ||
+    typeof body.sessionId !== "string" ||
+    !("userToken" in body) ||
+    typeof body.userToken !== "string"
+  ) {
+    throw new Error(
+      `Fixture provisioning failed with HTTP ${response.status}: ${JSON.stringify(body)}`,
+    );
+  }
+  return {
+    adminToken: body.adminToken,
+    fixtureId: body.fixtureId,
+    invalidSessionId: body.invalidSessionId,
+    otherUserId: body.otherUserId,
+    ownUserId: body.ownUserId,
+    sessionId: body.sessionId,
+    updatedDisplayName: `Updated ${body.fixtureId}`,
+    userToken: body.userToken,
+  };
+}
+
+async function disposeFixture(
+  baseUrl: string,
+  fixtureId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${baseUrl}/test/fixtures/${encodeURIComponent(fixtureId)}`,
+    { method: "DELETE" },
+  );
+  if (response.status !== 204) {
+    throw new Error(
+      `Fixture disposal failed with HTTP ${response.status}: ${await response.text()}`,
+    );
+  }
+}
 
 let server: UserAdminServer;
 
@@ -34,22 +93,20 @@ test("the user and admin authorization contract passes", async () => {
     operations: fromOpenApi(openApiDocument),
     lifecycle: {
       async create() {
-        return {
-          adminToken: "token-admin",
-          invalidSessionId: "invalid-session",
-          otherUserId: "user-2",
-          ownUserId: "user-1",
-          sessionId: server.createUserSession("user-1"),
-          userToken: "token-user-1",
-        };
+        return provisionFixture(server.url);
       },
       async dispose(fixture) {
-        server.deleteSession(fixture.sessionId);
+        await disposeFixture(server.url, fixture.fixtureId);
       },
     },
   })
     .actor("anonymous", sessions.anonymous())
-    .actor("raw-token", sessions.fromHeaders({ Authorization: "token-user-1" }))
+    .actor(
+      "raw-token",
+      sessions.fromHeaders(({ fixture }) => ({
+        Authorization: fixture.userToken,
+      })),
+    )
     .actor(
       "user",
       sessions.bearer(({ fixture }) => fixture.userToken),
@@ -91,7 +148,10 @@ test("the user and admin authorization contract passes", async () => {
     .get("/users/:userId", {
       params: { userId: ({ fixture }) => fixture.ownUserId },
     })
-    .expectBody({ id: "user-1" });
+    .expectResponse(({ fixture }) => ({
+      status: 200,
+      body: { id: fixture.ownUserId },
+    }));
 
   contract
     .case("cookie sessions can read their own resource")
@@ -99,7 +159,10 @@ test("the user and admin authorization contract passes", async () => {
     .get("/users/:userId", {
       params: { userId: ({ fixture }) => fixture.ownUserId },
     })
-    .expectBody({ id: "user-1" });
+    .expectResponse(({ fixture }) => ({
+      status: 200,
+      body: { id: fixture.ownUserId },
+    }));
 
   contract
     .case("invalid cookie sessions are rejected")
@@ -123,7 +186,26 @@ test("the user and admin authorization contract passes", async () => {
     .get("/users/:userId", {
       params: { userId: ({ fixture }) => fixture.otherUserId },
     })
-    .expectBody({ id: "user-2" });
+    .expectResponse(({ fixture }) => ({
+      status: 200,
+      body: { id: fixture.otherUserId },
+    }));
+
+  contract
+    .case("users can update their own resource")
+    .as("user")
+    .request("PATCH", ({ fixture }) => ({
+      path: `/users/${encodeURIComponent(fixture.ownUserId)}`,
+      body: { displayName: fixture.updatedDisplayName },
+    }))
+    .expectResponse(({ fixture }) => ({
+      status: 200,
+      headers: { "X-Resource-State": "updated" },
+      body: {
+        id: fixture.ownUserId,
+        displayName: fixture.updatedDisplayName,
+      },
+    }));
 
   contract
     .rule("users cannot access admin operations")
@@ -135,12 +217,15 @@ test("the user and admin authorization contract passes", async () => {
     .case("admins can read the admin audit summary")
     .as("admin")
     .get("/admin/audit")
-    .expectBody({ activeUsers: 2 });
+    .expectResponse({
+      status: 200,
+      body: { activeUsers: 2 },
+    });
 
   const report = await runAuthorizationTests(contract.build());
 
   if (report.outcome !== "passed") {
     throw new Error(JSON.stringify(report, null, 2));
   }
-  expect(report.summary.passed).toBe(9);
+  expect(report.summary.passed).toBe(10);
 });

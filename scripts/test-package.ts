@@ -122,7 +122,7 @@ async function main(): Promise<void> {
           private: true,
           type: "module",
           dependencies: {
-            "@auth-conformance/core": `file:${tarballPath}`,
+            "auth-conformance": `file:${tarballPath}`,
           },
           devDependencies: {
             "@types/node": "26.2.0",
@@ -139,7 +139,7 @@ async function main(): Promise<void> {
     await run(["node", "dist/runtime.js"], consumerDirectory);
 
     console.log(
-      "Packed @auth-conformance/core installed, typechecked, and ran in an isolated Node consumer.",
+      "Packed auth-conformance installed, typechecked, and ran in an isolated Node consumer.",
     );
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });

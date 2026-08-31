@@ -1,6 +1,6 @@
-import * as core from "@auth-conformance/core";
+import * as core from "auth-conformance";
 // @ts-expect-error Package subpaths are closed by the exports map.
-import "@auth-conformance/core/model";
+import "auth-conformance/model";
 
 const { authorizationContract, sessions } = core;
 

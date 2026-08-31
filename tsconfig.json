@@ -5,7 +5,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@auth-conformance/core": ["./packages/conformance/src/authoring.ts"]
+      "auth-conformance": ["./packages/conformance/src/authoring.ts"]
     },
     "strict": true,
     "noUncheckedIndexedAccess": true,

@@ -3,7 +3,7 @@ import {
   authorizationContract,
   runAuthorizationTests,
   sessions,
-} from "@auth-conformance/core";
+} from "auth-conformance";
 
 type Fixture = {
   readonly token: string;
@@ -81,7 +81,13 @@ try {
     .get("/devices/:deviceId", {
       params: { deviceId: ({ fixture }) => fixture.deviceId },
     })
-    .expectBody({ authorization: "Bearer packed-token", device: "device/1" });
+    .expectResponse(({ fixture }) => ({
+      status: 200,
+      body: {
+        authorization: "Bearer packed-token",
+        device: fixture.deviceId,
+      },
+    }));
 
   contract
     .case("custom request")
@@ -90,9 +96,12 @@ try {
       path: `/custom/${encodeURIComponent(fixture.deviceId)}`,
       body: { device: fixture.deviceId },
     }))
-    .expectBody({
-      authorization: "Bearer packed-token",
-      body: { device: "device/1" },
+    .expectResponse({
+      status: 200,
+      body: {
+        authorization: "Bearer packed-token",
+        body: { device: "device/1" },
+      },
     });
 
   contract

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "auth-conformance",
+      "name": "auth-conformance-workspace",
       "devDependencies": {
         "@biomejs/biome": "2.5.6",
         "@types/bun": "1.3.14",
@@ -11,15 +11,15 @@
       },
     },
     "examples/hono-user-admin": {
-      "name": "@auth-conformance/example-hono-user-admin",
+      "name": "auth-conformance-example-hono-user-admin",
       "dependencies": {
-        "@auth-conformance/core": "workspace:*",
+        "auth-conformance": "workspace:*",
         "hono": "4.13.4",
       },
     },
     "packages/conformance": {
-      "name": "@auth-conformance/core",
-      "version": "0.1.0",
+      "name": "auth-conformance",
+      "version": "0.1.1",
       "devDependencies": {
         "@types/bun": "1.3.14",
         "typescript": "7.0.2",
@@ -27,10 +27,6 @@
     },
   },
   "packages": {
-    "@auth-conformance/core": ["@auth-conformance/core@workspace:packages/conformance"],
-
-    "@auth-conformance/example-hono-user-admin": ["@auth-conformance/example-hono-user-admin@workspace:examples/hono-user-admin"],
-
     "@biomejs/biome": ["@biomejs/biome@2.5.6", "", { "optionalDependencies": { "@biomejs/cli-darwin-arm64": "2.5.6", "@biomejs/cli-darwin-x64": "2.5.6", "@biomejs/cli-linux-arm64": "2.5.6", "@biomejs/cli-linux-arm64-musl": "2.5.6", "@biomejs/cli-linux-x64": "2.5.6", "@biomejs/cli-linux-x64-musl": "2.5.6", "@biomejs/cli-win32-arm64": "2.5.6", "@biomejs/cli-win32-x64": "2.5.6" }, "bin": { "biome": "bin/biome" } }, "sha512-lxVNjv7UF6KfhMJfL9gaUHbWdJdHbsAj6OSmwSYNdhRuG67NxNQ4Xdvh3TUxsSK9sBzJBQhEJj3AopmmNJ5pSA=="],
 
     "@biomejs/cli-darwin-arm64": ["@biomejs/cli-darwin-arm64@2.5.6", "", { "os": "darwin", "cpu": "arm64" }, "sha512-zMOLZP4oMrjh6m1zcSj1ud2awUPgTuMVbmQhYYWL7J8HwCnbHHBvTm7VBTRuY7epT5bez76IpKYQ11ZAqHFlnw=="],
@@ -92,6 +88,10 @@
     "@typescript/typescript-win32-arm64": ["@typescript/typescript-win32-arm64@7.0.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-Gyl1Vy6OsWesLzmq+EP0Fb7b4Nid5232AvcA2SFcdYreldpNtYFFofPjnt62y9hQy7VTaZp65ICJjuAQRaVcIQ=="],
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
+
+    "auth-conformance": ["auth-conformance@workspace:packages/conformance"],
+
+    "auth-conformance-example-hono-user-admin": ["auth-conformance-example-hono-user-admin@workspace:examples/hono-user-admin"],
 
     "bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 

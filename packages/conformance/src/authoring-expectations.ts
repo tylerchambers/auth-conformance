@@ -22,6 +22,108 @@ export type CaseAssertion<Fixture> = (input: {
   readonly fixture: Fixture;
 }) => void | Promise<void>;
 
+/** Constrains several observable parts of one HTTP response together. */
+export type ResponseExpectation = {
+  /** Requires this HTTP status. */
+  readonly status: number;
+  /** Requires these response headers, matched case-insensitively by name. */
+  readonly headers?: Readonly<Record<string, string>>;
+  /** Requires exact deep equality when the property is present. */
+  readonly body?: unknown;
+};
+
+export type ResponseExpectationInput<Fixture> =
+  | ResponseExpectation
+  | ((context: {
+      readonly fixture: Fixture;
+    }) => ResponseExpectation | Promise<ResponseExpectation>);
+
+export function responseExpectation<Fixture>(
+  expectation: ResponseExpectationInput<Fixture>,
+): ExpectedResponse {
+  return new ExpectedResponse({
+    description:
+      typeof expectation === "function"
+        ? "fixture-derived response expectation"
+        : responseExpectationDescription(
+            expectation,
+            Object.hasOwn(expectation, "body"),
+          ),
+    async evaluate(response, fixture) {
+      const resolved =
+        typeof expectation === "function"
+          ? await expectation({
+              fixture: fixtureFromRunner<Fixture>(fixture),
+            })
+          : expectation;
+      return responseExpectationMismatches(response, resolved);
+    },
+  });
+}
+
+function responseExpectationMismatches(
+  response: {
+    readonly status: number;
+    readonly headers: Readonly<Record<string, string>>;
+    readonly body: unknown;
+  },
+  expectation: ResponseExpectation,
+): readonly ResponseMismatch[] {
+  const mismatches: ResponseMismatch[] = [];
+  if (response.status !== expectation.status) {
+    mismatches.push(
+      policyMismatch(
+        `expected HTTP ${expectation.status}, received HTTP ${response.status}`,
+      ),
+    );
+  }
+  for (const [name, value] of Object.entries(expectation.headers ?? {})) {
+    const actual = headerValue(response.headers, name);
+    if (actual !== value) {
+      mismatches.push(
+        policyMismatch(
+          `expected response header ${formatValue(name)} to equal ${formatValue(value)}, received ${formatValue(actual)}`,
+        ),
+      );
+    }
+  }
+  if (
+    Object.hasOwn(expectation, "body") &&
+    !isDeepStrictEqual(response.body, expectation.body)
+  ) {
+    mismatches.push(
+      policyMismatch(
+        `expected response body ${formatValue(expectation.body)}, received ${formatValue(response.body)}`,
+      ),
+    );
+  }
+  return mismatches;
+}
+
+function responseExpectationDescription(
+  expectation: ResponseExpectation,
+  hasBody: boolean,
+): string {
+  const parts = [`HTTP ${expectation.status}`];
+  if (expectation.headers !== undefined) {
+    parts.push(`headers containing ${formatValue(expectation.headers)}`);
+  }
+  if (hasBody) {
+    parts.push(`body equal to ${formatValue(expectation.body)}`);
+  }
+  return parts.join(", ");
+}
+
+function headerValue(
+  headers: Readonly<Record<string, string>>,
+  expectedName: string,
+): string | undefined {
+  const normalizedName = expectedName.toLowerCase();
+  return Object.entries(headers).find(
+    ([name]) => name.toLowerCase() === normalizedName,
+  )?.[1];
+}
+
 export function strictBodyExpectation(value: unknown): ExpectedResponse {
   return new ExpectedResponse({
     description: `expected body equal to ${formatValue(value)}`,

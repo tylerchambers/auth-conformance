@@ -1,5 +1,5 @@
 {
-  "name": "@auth-conformance/example-hono-user-admin",
+  "name": "auth-conformance-example-hono-user-admin",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit --pretty false"
   },
   "dependencies": {
-    "@auth-conformance/core": "workspace:*",
+    "auth-conformance": "workspace:*",
     "hono": "4.13.4"
   }
 }

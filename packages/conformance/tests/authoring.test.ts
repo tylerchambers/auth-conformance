@@ -292,6 +292,49 @@ describe("authoring expectations", () => {
     ]);
   });
 
+  it("matches status, headers, and body in one expectation", async () => {
+    const contract = newContract();
+    contract
+      .case("complete response")
+      .as("member")
+      .post("/devices")
+      .expectResponse({
+        status: 201,
+        headers: { "X-Resource-State": "created" },
+        body: { id: 1 },
+      });
+    const expected = contract.build()[0]?.expectedResponse;
+
+    expect(
+      await expected?.evaluate({
+        status: 201,
+        headers: { "x-resource-state": "created", "x-request-id": "request-1" },
+        body: { id: 1 },
+      }),
+    ).toEqual([]);
+    expect(
+      await expected?.evaluate({
+        status: 200,
+        headers: { "x-resource-state": "unchanged" },
+        body: { id: 2 },
+      }),
+    ).toEqual([
+      {
+        kind: "policy",
+        message: "expected HTTP 201, received HTTP 200",
+      },
+      {
+        kind: "policy",
+        message:
+          "expected response header 'X-Resource-State' to equal 'created', received 'unchanged'",
+      },
+      {
+        kind: "policy",
+        message: "expected response body { id: 1 }, received { id: 2 }",
+      },
+    ]);
+  });
+
   it("distinguishes strict body equality from deep subset matching", async () => {
     const strict = newContract();
     strict.case("strict").as("member").get("/strict").expectBody({ id: 1 });
